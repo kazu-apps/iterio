@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.room.withTransaction
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import com.zenith.app.data.encryption.EncryptionException
+import com.zenith.app.data.encryption.EncryptionManager
 import com.zenith.app.data.local.ZenithDatabase
 import com.zenith.app.data.local.dao.*
 import com.zenith.app.data.local.entity.*
@@ -13,7 +15,6 @@ import com.zenith.app.domain.repository.BackupRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -28,7 +29,8 @@ class BackupRepositoryImpl @Inject constructor(
     private val reviewTaskDao: ReviewTaskDao,
     private val settingsDao: SettingsDao,
     private val dailyStatsDao: DailyStatsDao,
-    private val gson: Gson
+    private val gson: Gson,
+    private val encryptionManager: EncryptionManager
 ) : BackupRepository {
 
     private val dateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
@@ -110,12 +112,14 @@ class BackupRepositoryImpl @Inject constructor(
     override suspend fun writeToFile(data: BackupData, uri: Uri): Result<Unit> {
         return try {
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                OutputStreamWriter(outputStream, Charsets.UTF_8).use { writer ->
-                    val json = gson.toJson(data)
-                    writer.write(json)
-                }
+                val json = gson.toJson(data)
+                // 暗号化してバイナリで書き込み
+                val encryptedBytes = encryptionManager.encryptBackup(json)
+                outputStream.write(encryptedBytes)
             } ?: return Result.failure(Exception("ファイルを開けませんでした"))
             Result.success(Unit)
+        } catch (e: EncryptionException) {
+            Result.failure(Exception("暗号化に失敗しました: ${e.message}"))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -123,11 +127,21 @@ class BackupRepositoryImpl @Inject constructor(
 
     override suspend fun readFromFile(uri: Uri): Result<BackupData> {
         return try {
-            val json = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
-                    reader.readText()
-                }
+            val bytes = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                inputStream.readBytes()
             } ?: return Result.failure(Exception("ファイルを開けませんでした"))
+
+            // 暗号化判定して復号化
+            val json = if (encryptionManager.isEncryptedData(bytes)) {
+                try {
+                    encryptionManager.decryptBackup(bytes)
+                } catch (e: EncryptionException) {
+                    return Result.failure(Exception("復号化に失敗しました: ${e.message}"))
+                }
+            } else {
+                // 旧形式（平文JSON）の後方互換性
+                String(bytes, Charsets.UTF_8)
+            }
 
             val data = gson.fromJson(json, BackupData::class.java)
                 ?: return Result.failure(Exception("ファイル形式が不正です"))

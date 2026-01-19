@@ -9,6 +9,8 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
+import com.zenith.app.data.encryption.EncryptionException
+import com.zenith.app.data.encryption.EncryptionManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,12 +24,14 @@ import javax.inject.Singleton
  */
 @Singleton
 class GoogleDriveManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val encryptionManager: EncryptionManager
 ) {
     companion object {
         private const val APP_NAME = "ZENITH"
         private const val BACKUP_FILE_NAME = "zenith_cloud_backup.json"
         private const val MIME_TYPE_JSON = "application/json"
+        private const val MIME_TYPE_BINARY = "application/octet-stream"
     }
 
     private var driveService: Drive? = null
@@ -57,7 +61,7 @@ class GoogleDriveManager @Inject constructor(
     fun isInitialized(): Boolean = driveService != null
 
     /**
-     * バックアップをアップロード
+     * バックアップをアップロード（暗号化）
      */
     suspend fun uploadBackup(jsonContent: String): Result<CloudBackupInfo> = withContext(Dispatchers.IO) {
         val service = driveService ?: return@withContext Result.failure(
@@ -68,7 +72,9 @@ class GoogleDriveManager @Inject constructor(
             // 既存のバックアップファイルを検索
             val existingFile = findBackupFile()
 
-            val fileContent = ByteArrayContent.fromString(MIME_TYPE_JSON, jsonContent)
+            // JSONを暗号化
+            val encryptedBytes = encryptionManager.encryptBackup(jsonContent)
+            val fileContent = ByteArrayContent(MIME_TYPE_BINARY, encryptedBytes)
 
             val uploadedFile = if (existingFile != null) {
                 // 既存ファイルを更新
@@ -98,13 +104,15 @@ class GoogleDriveManager @Inject constructor(
                     sizeBytes = fileInfo.getSize()?.toLong() ?: 0L
                 )
             )
+        } catch (e: EncryptionException) {
+            Result.failure(Exception("暗号化に失敗しました: ${e.message}"))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     /**
-     * バックアップをダウンロード
+     * バックアップをダウンロード（復号化）
      */
     suspend fun downloadBackup(): Result<String> = withContext(Dispatchers.IO) {
         val service = driveService ?: return@withContext Result.failure(
@@ -121,7 +129,20 @@ class GoogleDriveManager @Inject constructor(
             service.files().get(backupFile.id)
                 .executeMediaAndDownloadTo(outputStream)
 
-            val content = outputStream.toString(Charsets.UTF_8.name())
+            val bytes = outputStream.toByteArray()
+
+            // 暗号化判定して復号化（後方互換性あり）
+            val content = if (encryptionManager.isEncryptedData(bytes)) {
+                try {
+                    encryptionManager.decryptBackup(bytes)
+                } catch (e: EncryptionException) {
+                    return@withContext Result.failure(Exception("復号化に失敗しました: ${e.message}"))
+                }
+            } else {
+                // 旧形式（平文JSON）の後方互換性
+                String(bytes, Charsets.UTF_8)
+            }
+
             Result.success(content)
         } catch (e: Exception) {
             Result.failure(e)

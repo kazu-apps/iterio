@@ -2,6 +2,7 @@ package com.zenith.app.data.billing
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -32,6 +33,10 @@ import kotlin.coroutines.resume
 class BillingClientWrapper @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    companion object {
+        private const val TAG = "BillingClientWrapper"
+    }
+
     private var billingClient: BillingClient? = null
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
@@ -44,9 +49,27 @@ class BillingClientWrapper @Inject constructor(
     val newPurchases: SharedFlow<List<Purchase>> = _newPurchases.asSharedFlow()
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
-        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-            _newPurchases.tryEmit(purchases)
-            _purchases.tryEmit(purchases)
+        when (billingResult.responseCode) {
+            BillingClient.BillingResponseCode.OK -> {
+                if (purchases != null) {
+                    Log.d(TAG, "Purchase updated: ${purchases.size} items")
+                    _newPurchases.tryEmit(purchases)
+                    _purchases.tryEmit(purchases)
+                }
+            }
+            BillingClient.BillingResponseCode.USER_CANCELED -> {
+                Log.d(TAG, "User canceled purchase")
+            }
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
+                Log.w(TAG, "Item already owned")
+            }
+            BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> {
+                Log.w(TAG, "Billing service disconnected")
+                _connectionState.value = ConnectionState.Disconnected
+            }
+            else -> {
+                Log.e(TAG, "Purchase failed: ${billingResult.responseCode} - ${billingResult.debugMessage}")
+            }
         }
     }
 

@@ -433,9 +433,9 @@ fun TimerScreen(
         )
     }
 
-    // BGM選択ダイアログ
+    // BGM選択ボトムシート
     if (showBgmSelector) {
-        BgmSelectorDialog(
+        BgmSelectorBottomSheet(
             tracks = viewModel.getAvailableBgmTracks(),
             selectedTrack = selectedBgmTrack,
             volume = bgmVolume,
@@ -765,7 +765,7 @@ private fun BgmButton(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BgmSelectorDialog(
+private fun BgmSelectorBottomSheet(
     tracks: List<BgmTrack>,
     selectedTrack: BgmTrack?,
     volume: Float,
@@ -773,111 +773,129 @@ private fun BgmSelectorDialog(
     onVolumeChange: (Float) -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    val sheetState = rememberModalBottomSheetState()
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                Icons.Default.MusicNote,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        },
-        title = { Text("BGMを選択") },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // ヘッダー
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // トラック選択
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Icon(
+                    Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+                Text(
+                    text = "BGMを選択",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            HorizontalDivider()
+
+            // トラック選択
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // なし（BGMオフ）
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelectTrack(null) }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // なし（BGMオフ）
+                    RadioButton(
+                        selected = selectedTrack == null,
+                        onClick = { onSelectTrack(null) }
+                    )
+                    Text(
+                        text = "なし",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+
+                // トラック一覧
+                tracks.forEach { track ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSelectTrack(null) }
-                            .padding(vertical = 8.dp),
+                            .clickable { onSelectTrack(track) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        RadioButton(
+                            selected = selectedTrack?.id == track.id,
+                            onClick = { onSelectTrack(track) }
+                        )
+                        Column {
+                            Text(
+                                text = track.nameJa,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = track.category.nameJa,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 音量スライダー
+            if (selectedTrack != null) {
+                HorizontalDivider()
+                Column(
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = "音量",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        RadioButton(
-                            selected = selectedTrack == null,
-                            onClick = { onSelectTrack(null) }
+                        Icon(
+                            Icons.Default.VolumeDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            text = "なし",
-                            style = MaterialTheme.typography.bodyLarge
+                        Slider(
+                            value = volume,
+                            onValueChange = onVolumeChange,
+                            modifier = Modifier.weight(1f)
                         )
-                    }
-
-                    HorizontalDivider()
-
-                    // トラック一覧
-                    tracks.forEach { track ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelectTrack(track) }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            RadioButton(
-                                selected = selectedTrack?.id == track.id,
-                                onClick = { onSelectTrack(track) }
-                            )
-                            Column {
-                                Text(
-                                    text = track.nameJa,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Text(
-                                    text = track.category.nameJa,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        Icon(
+                            Icons.Default.VolumeUp,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
-
-                // 音量スライダー
-                if (selectedTrack != null) {
-                    HorizontalDivider()
-                    Column {
-                        Text(
-                            text = "音量",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.VolumeDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Slider(
-                                value = volume,
-                                onValueChange = onVolumeChange,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(
-                                Icons.Default.VolumeUp,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("完了")
             }
         }
-    )
+    }
 }

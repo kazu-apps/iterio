@@ -221,8 +221,10 @@ class TimerViewModel @Inject constructor(
                 focusModeEnabled = settings.focusModeEnabled,
                 focusModeStrict = lockModeEnabled
             )
+            bgmManager.onTimerStart()
         } else if (state.isPaused) {
             TimerService.resumeTimer(context)
+            bgmManager.onTimerResume()
         }
     }
 

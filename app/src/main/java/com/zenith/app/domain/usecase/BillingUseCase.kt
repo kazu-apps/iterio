@@ -151,15 +151,39 @@ class BillingUseCase @Inject constructor(
     }
 
     private fun calculateExpiryDate(purchase: Purchase, type: SubscriptionType): LocalDateTime? {
+        return when (type) {
+            SubscriptionType.LIFETIME -> null // 無期限
+            SubscriptionType.FREE -> null
+            else -> {
+                // Google Playからの有効期限を取得
+                try {
+                    val json = org.json.JSONObject(purchase.originalJson)
+                    val expiryTimeMillis = json.optLong("expiryTimeMillis", -1)
+                    if (expiryTimeMillis > 0) {
+                        Instant.ofEpochMilli(expiryTimeMillis)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDateTime()
+                    } else {
+                        // フォールバック：購入時間から計算
+                        calculateExpiryFromPurchaseTime(purchase, type)
+                    }
+                } catch (e: Exception) {
+                    // JSONパースエラー時もフォールバック
+                    calculateExpiryFromPurchaseTime(purchase, type)
+                }
+            }
+        }
+    }
+
+    private fun calculateExpiryFromPurchaseTime(purchase: Purchase, type: SubscriptionType): LocalDateTime {
         val purchaseTime = Instant.ofEpochMilli(purchase.purchaseTime)
             .atZone(ZoneId.systemDefault())
             .toLocalDateTime()
 
         return when (type) {
-            SubscriptionType.LIFETIME -> null // 無期限
             SubscriptionType.MONTHLY -> purchaseTime.plusMonths(1)
             SubscriptionType.YEARLY -> purchaseTime.plusYears(1)
-            SubscriptionType.FREE -> null
+            else -> purchaseTime
         }
     }
 
