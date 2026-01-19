@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ZENITH</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">ホーム</string>
+    <string name="nav_history">履歴</string>
+    <string name="nav_calendar">カレンダー</string>
+    <string name="nav_stats">統計</string>
+    <string name="nav_settings">設定</string>
+
+    <!-- Home Screen -->
+    <string name="home_today_study">今日の学習</string>
+    <string name="home_sessions">セッション</string>
+    <string name="home_streak">連続日数</string>
+    <string name="home_review_tasks">今日の復習タスク</string>
+    <string name="home_recent_records">最近の学習記録</string>
+    <string name="home_no_tasks">今日の復習タスクはありません</string>
+    <string name="home_no_records">学習記録がありません</string>
+
+    <!-- Record Input -->
+    <string name="record_add">学習記録を追加</string>
+    <string name="record_edit">記録を編集</string>
+    <string name="record_subject">教科名</string>
+    <string name="record_subject_hint">例: 数学、英語、物理</string>
+    <string name="record_chapter">章・単元</string>
+    <string name="record_chapter_hint">例: 第3章 微分</string>
+    <string name="record_page_start">開始ページ</string>
+    <string name="record_page_end">終了ページ</string>
+    <string name="record_duration">学習時間（分）</string>
+    <string name="record_notes">メモ</string>
+    <string name="record_notes_hint">学習内容や気づきをメモ</string>
+    <string name="record_save">保存</string>
+    <string name="record_update">更新</string>
+    <string name="record_templates">テンプレート</string>
+
+    <!-- History Screen -->
+    <string name="history_title">学習履歴</string>
+    <string name="history_empty">学習記録がまだありません</string>
+    <string name="history_filter_all">すべて</string>
+
+    <!-- Calendar Screen -->
+    <string name="calendar_title">カレンダー</string>
+    <string name="calendar_prev_month">前月</string>
+    <string name="calendar_next_month">翌月</string>
+    <string name="calendar_legend_less">少</string>
+    <string name="calendar_legend_more">多</string>
+
+    <!-- Stats Screen -->
+    <string name="stats_title">統計</string>
+    <string name="stats_streak">連続学習</string>
+    <string name="stats_current_streak">現在の連続</string>
+    <string name="stats_max_streak">最高記録</string>
+    <string name="stats_study_time">学習時間</string>
+    <string name="stats_this_week">今週</string>
+    <string name="stats_this_month">今月</string>
+    <string name="stats_daily_average">1日平均</string>
+    <string name="stats_sessions">学習セッション</string>
+    <string name="stats_total_sessions">総セッション数</string>
+    <string name="stats_weekly_chart">週間学習グラフ</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">設定</string>
+    <string name="settings_notifications">通知</string>
+    <string name="settings_notifications_enabled">リマインダー通知</string>
+    <string name="settings_notifications_desc">学習リマインダーと復習通知を受け取る</string>
+    <string name="settings_goals">目標</string>
+    <string name="settings_daily_goal">1日の学習目標</string>
+    <string name="settings_review">復習</string>
+    <string name="settings_review_auto">自動復習スケジュール</string>
+    <string name="settings_review_auto_desc">エビングハウス忘却曲線に基づく復習タスクを自動生成</string>
+    <string name="settings_about">アプリについて</string>
+    <string name="settings_version">バージョン</string>
+    <string name="settings_build">ビルド</string>
+
+    <!-- Common -->
+    <string name="loading">読み込み中…</string>
+    <string name="error_generic">エラーが発生しました</string>
+    <string name="confirm">確認</string>
+    <string name="cancel">キャンセル</string>
+    <string name="delete">削除</string>
+    <string name="edit">編集</string>
+    <string name="days">日</string>
+    <string name="minutes">分</string>
+
+    <!-- Focus Mode / Accessibility Service -->
+    <string name="accessibility_service_description">ZENITHのフォーカスモードを有効にします。学習中に他のアプリへのアクセスを制限し、集中力を高めます。</string>
+    <string name="focus_mode_title">フォーカスモード</string>
+    <string name="focus_mode_active">フォーカスモード有効中</string>
+    <string name="focus_mode_blocked_message">フォーカスモード中です。学習を続けましょう！</string>
+    <string name="focus_mode_enable_accessibility">フォーカスモードを使用するには、アクセシビリティサービスを有効にしてください</string>
+    <string name="focus_mode_strict">厳格モード</string>
+    <string name="focus_mode_strict_desc">完全ロック（解除不可）</string>
+    <string name="focus_mode_normal">通常モード</string>
+    <string name="focus_mode_normal_desc">緊急時は解除可能</string>
+
+    <!-- Timer -->
+    <string name="timer_title">タイマー</string>
+    <string name="timer_work">作業中</string>
+    <string name="timer_short_break">休憩中</string>
+    <string name="timer_long_break">長休憩中</string>
+    <string name="timer_idle">準備完了</string>
+    <string name="timer_start">開始</string>
+    <string name="timer_pause">一時停止</string>
+    <string name="timer_resume">再開</string>
+    <string name="timer_skip">スキップ</string>
+    <string name="timer_stop">停止</string>
+    <string name="timer_finish_title">お疲れ様でした！</string>
+    <string name="timer_cancel_title">タイマーを終了しますか？</string>
+    <string name="timer_cancel_message">現在の進捗は記録されます。</string>
+
+    <!-- Tasks -->
+    <string name="tasks_title">タスク管理</string>
+    <string name="tasks_add_group">グループを追加</string>
+    <string name="tasks_add_task">タスクを追加</string>
+    <string name="tasks_no_groups">科目グループがありません</string>
+    <string name="tasks_no_tasks">タスクがありません</string>
+
+    <!-- Widget -->
+    <string name="widget_description">本日の学習時間とストリークを表示</string>
+    <string name="widget_name">ZENITH学習ウィジェット</string>
+    <string name="widget_loading">読み込み中…</string>
+
+    <!-- Lock Overlay -->
+    <string name="lock_overlay_message">完全ロックモード有効中\n集中して作業を続けましょう</string>
+    <string name="lock_overlay_tap_to_return">タップしてアプリに戻る</string>
+    <string name="timer_phase_work">作業中</string>
+    <string name="timer_phase_break">休憩中</string>
+    <string name="overlay_permission_required">完全ロックモードを使用するには「他のアプリの上に重ねて表示」権限が必要です</string>
+    <string name="overlay_permission_grant">権限を設定</string>
+</resources>

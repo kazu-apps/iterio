@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background_dark">#121212</color>
+    <color name="surface_dark">#1E1E1E</color>
+    <color name="surface_variant_dark">#2D2D2D</color>
+    <color name="teal_700">#00838F</color>
+    <color name="teal_800">#00695C</color>
+    <color name="accent_teal">#4DD0E1</color>
+    <color name="text_primary">#DEFFFFFF</color>
+    <color name="text_secondary">#99FFFFFF</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <!-- Widget Colors -->
+    <color name="widget_background">#1E1E2E</color>
+    <color name="widget_text_primary">#FFFFFF</color>
+    <color name="widget_text_secondary">#A0A0B0</color>
+    <color name="timer_work">#4CAF50</color>
+    <color name="timer_break">#2196F3</color>
+</resources>
