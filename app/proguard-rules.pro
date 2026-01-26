@@ -6,7 +6,7 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Keep Room entities
--keep class com.zenith.app.data.local.entity.** { *; }
+-keep class com.iterio.app.data.local.entity.** { *; }
 
 # Keep Hilt generated classes
 -keep class dagger.hilt.** { *; }

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,36 +7,48 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    jacoco
+}
+
+// Load secrets from secrets.properties (gitignored)
+val secretsFile = rootProject.file("secrets.properties")
+val secrets = Properties().apply {
+    if (secretsFile.exists()) {
+        load(secretsFile.inputStream())
+    }
+}
+
+fun getSecret(key: String): String {
+    return secrets.getProperty(key) ?: project.findProperty(key)?.toString() ?: ""
 }
 
 android {
-    namespace = "com.zenith.app"
+    namespace = "com.iterio.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.zenith.app"
+        applicationId = "com.iterio.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.iterio.app.HiltTestRunner"
 
-        // Google Play Billing 公開鍵（gradle.propertiesから取得）
+        // Google Play Billing 公開鍵（secrets.propertiesから取得）
         buildConfigField("String", "BILLING_PUBLIC_KEY",
-            "\"${findProperty("BILLING_PUBLIC_KEY") ?: ""}\"")
+            "\"${getSecret("BILLING_PUBLIC_KEY")}\"")
     }
 
     signingConfigs {
         create("release") {
-            val props = project.properties
-            val storeFilePath = props["RELEASE_STORE_FILE"]?.toString()
-            if (!storeFilePath.isNullOrEmpty()) {
+            val storeFilePath = getSecret("RELEASE_STORE_FILE")
+            if (storeFilePath.isNotEmpty()) {
                 storeFile = file(storeFilePath)
             }
-            storePassword = props["RELEASE_STORE_PASSWORD"]?.toString() ?: ""
-            keyAlias = props["RELEASE_KEY_ALIAS"]?.toString() ?: ""
-            keyPassword = props["RELEASE_KEY_PASSWORD"]?.toString() ?: ""
+            storePassword = getSecret("RELEASE_STORE_PASSWORD")
+            keyAlias = getSecret("RELEASE_KEY_ALIAS")
+            keyPassword = getSecret("RELEASE_KEY_PASSWORD")
         }
     }
 
@@ -148,6 +162,7 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 
     // Android Test (Espresso/Compose UI)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.test.espresso.intents)
     androidTestImplementation(libs.androidx.test.uiautomator)
@@ -155,7 +170,64 @@ dependencies {
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.hilt.android)
+    androidTestImplementation(libs.hilt.android.testing)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.mockk.android)
+    kspAndroidTest(libs.hilt.compiler)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// JaCoCo configuration
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.register<JacocoReport>("jacocoTestReport") {
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/testDebugUnitTest/html"))
+    }
+
+    val fileFilter = listOf(
+        "**/R.class",
+        "**/R\$*.class",
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/*Test*.*",
+        "android/**/*.*",
+        "**/*_Hilt*.*",
+        "**/Hilt_*.*",
+        "**/*_Factory.*",
+        "**/*_MembersInjector.*",
+        "**/*Module_*Factory.*",
+        "**/di/*",
+        "**/databinding/*",
+        "**/BR.class"
+    )
+
+    val debugTree = fileTree("${layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
+        exclude(fileFilter)
+    }
+
+    val mainSrc = "${project.projectDir}/src/main/java"
+
+    sourceDirectories.setFrom(files(mainSrc))
+    classDirectories.setFrom(files(debugTree))
+    executionData.setFrom(fileTree(layout.buildDirectory) {
+        include("jacoco/testDebugUnitTest.exec")
+    })
+}
+
+tasks.register("jacocoTestCoverageVerification") {
+    dependsOn("jacocoTestReport")
+
+    doLast {
+        val report = file("${layout.buildDirectory.get()}/reports/jacoco/testDebugUnitTest/html/index.html")
+        if (report.exists()) {
+            println("Coverage report: ${report.absolutePath}")
+        }
+    }
 }

@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ZENITH"
+rootProject.name = "Iterio"
 include(":app")
