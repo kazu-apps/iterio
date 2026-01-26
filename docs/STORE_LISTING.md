@@ -1,7 +1,7 @@
-# Google Play ストア掲載テキスト - ZENITH
+# Google Play ストア掲載テキスト - Iterio
 
 ## アプリ名
-ZENITH - 集中力向上&学習管理
+Iterio - 集中力向上&学習管理
 
 ## 簡単な説明（80文字以内）
 ```
@@ -12,8 +12,8 @@ ZENITH - 集中力向上&学習管理
 ## 詳しい説明（4000文字以内）
 
 ```
-【ZENITHとは】
-ZENITHは、科学的手法を取り入れた学習サポートアプリです。ポモドーロ・テクニックによる集中力管理と、エビングハウスの忘却曲線に基づく復習スケジュール機能で、あなたの学習効率を最大化します。
+【Iterioとは】
+Iterioは、科学的手法を取り入れた学習サポートアプリです。ポモドーロ・テクニックによる集中力管理と、エビングハウスの忘却曲線に基づく復習スケジュール機能で、あなたの学習効率を最大化します。
 
 ━━━━━━━━━━━━━━━━━━━━
 【主な機能】
@@ -86,9 +86,9 @@ ZENITHは、科学的手法を取り入れた学習サポートアプリです�
 ━━━━━━━━━━━━━━━━━━━━
 【サポート】
 ━━━━━━━━━━━━━━━━━━━━
-ご質問やフィードバックは zenith.timer.app.help@gmail.com までお気軽にお寄せください。
+ご質問やフィードバックは iterio.timer.app.help@gmail.com までお気軽にお寄せください。
 
-今日から、ZENITHで学習効率を最大化しましょう！
+今日から、Iterioで学習効率を最大化しましょう！
 ```
 
 文字数: 約1,100文字
@@ -135,7 +135,7 @@ ZENITHは、科学的手法を取り入れた学習サポートアプリです�
 ## 英語版（将来対応用）
 
 ### App Name
-ZENITH - Focus & Study Timer
+Iterio - Focus & Study Timer
 
 ### Short Description (80 chars)
 ```
@@ -144,7 +144,7 @@ Boost focus with Pomodoro timer & optimize learning with spaced repetition
 
 ### Full Description
 ```
-ZENITH is a scientific learning support app that combines the Pomodoro Technique for focus management with spaced repetition based on Ebbinghaus' forgetting curve.
+Iterio is a scientific learning support app that combines the Pomodoro Technique for focus management with spaced repetition based on Ebbinghaus' forgetting curve.
 
 【Key Features】
 
@@ -190,5 +190,5 @@ ZENITH is a scientific learning support app that combines the Pomodoro Technique
 • Background music
 • Theme customization
 
-Start maximizing your learning efficiency with ZENITH today!
+Start maximizing your learning efficiency with Iterio today!
 ```

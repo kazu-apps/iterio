@@ -1,6 +1,6 @@
-# ZENITH 手動テスト手順書
+# Iterio 手動テスト手順書
 
-このドキュメントでは、ZENITHアプリの主要な機能を手動でテストするための手順を記載します。
+このドキュメントでは、Iterioアプリの主要な機能を手動でテストするための手順を記載します。
 リリース前に実施すべき手動テストシナリオをまとめています。
 
 ---
@@ -85,11 +85,11 @@
 
 | プラン | 商品ID | 価格表示 | 割引表示 | 月額換算表示 |
 |-------|--------|---------|---------|------------|
-| 月額プラン | zenith_premium_monthly | ¥480/月 | - | - |
-| 3ヶ月プラン | zenith_premium_quarterly | ¥1,200/3ヶ月 | 17%お得 | ¥400/月 |
-| 6ヶ月プラン | zenith_premium_half_yearly | ¥2,000/6ヶ月 | 31%お得 | ¥333/月 |
-| 年額プラン | zenith_premium_yearly | ¥3,000/年 | おすすめ・48%お得 | ¥250/月 |
-| 買い切り | zenith_premium_lifetime | ¥4,000 | 永久利用 | - |
+| 月額プラン | iterio_premium_monthly | ¥480/月 | - | - |
+| 3ヶ月プラン | iterio_premium_quarterly | ¥1,200/3ヶ月 | 17%お得 | ¥400/月 |
+| 6ヶ月プラン | iterio_premium_half_yearly | ¥2,000/6ヶ月 | 31%お得 | ¥333/月 |
+| 年額プラン | iterio_premium_yearly | ¥3,000/年 | おすすめ・48%お得 | ¥250/月 |
+| 買い切り | iterio_premium_lifetime | ¥4,000 | 永久利用 | - |
 
 **期待結果チェックリスト:**
 - [ ] 価格がローカライズされて表示される
@@ -122,7 +122,7 @@
 
 | ステップ | 操作 | 期待結果 |
 |:-------:|------|---------|
-| 1 | Google Play → 定期購入 へ移動 | ZENITHの定期購入が表示される |
+| 1 | Google Play → 定期購入 へ移動 | Iterioの定期購入が表示される |
 | 2 | 定期購入を解約 | 解約確認ダイアログが表示される |
 | 3 | 解約を確定 | 次回更新日まではPremium機能が使用可能 |
 | 4 | 更新日を過ぎる | Premium機能がロックされる |
@@ -212,7 +212,7 @@
 | 4 | 「エクスポート完了」ダイアログを確認 | 成功メッセージが表示される |
 
 **期待結果チェックリスト:**
-- [ ] `zenith_backup_YYYYMMDD_HHmmss.json` ファイルが作成される
+- [ ] `iterio_backup_YYYYMMDD_HHmmss.json` ファイルが作成される
 - [ ] バックアップ完了のメッセージが表示される
 - [ ] ファイルサイズが妥当（空でない）
 - [ ] ファイルが暗号化されている
@@ -415,7 +415,7 @@
 ./gradlew connectedAndroidTest
 
 # 特定テストのみ実行
-./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.zenith.app.ui.TimerScreenTest
+./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.iterio.app.ui.TimerScreenTest
 
 # ユニットテスト実行
 ./gradlew test

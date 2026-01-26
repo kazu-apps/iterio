@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#121212"/>
+
+  <!-- Teal Circle -->
+  <circle cx="256" cy="256" r="190" fill="#00838F"/>
+
+  <!-- White T Letter -->
+  <path d="M152 175 L360 175 L360 195 L320 195 L320 337 L192 337 L192 195 L152 195 Z" fill="#FFFFFF"/>
+</svg>

@@ -1,7 +1,7 @@
-# ZENITH Google Play公開 - Web版Claude申し送り
+# Iterio Google Play公開 - Web版Claude申し送り
 
 ## プロジェクト概要
-**ZENITH** - ポモドーロタイマー×忘却曲線の学習管理Androidアプリ
+**Iterio** - ポモドーロタイマー×忘却曲線の学習管理Androidアプリ
 
 ---
 
@@ -35,17 +35,17 @@
 
 ### Step 2: GitHubリポジトリ作成
 1. 右上の「+」→「New repository」
-2. Repository name: `zenith`（または任意の名前）
+2. Repository name: `iterio`（または任意の名前）
 3. Public を選択
 4. 「Create repository」をクリック
 
 ### Step 3: コードをプッシュ
 ローカルのターミナルで実行:
 ```bash
-cd C:/Users/hikit/projects/ZENITH
+cd C:/Users/hikit/projects/Iterio
 git add .
 git commit -m "Google Play ストア公開準備"
-git remote add origin https://github.com/[ユーザー名]/zenith.git
+git remote add origin https://github.com/[ユーザー名]/iterio.git
 git branch -M main
 git push -u origin main
 ```
@@ -59,7 +59,7 @@ git push -u origin main
 6. 数分待つとURLが表示される
 
 プライバシーポリシーURL例:
-`https://[username].github.io/zenith/privacy-policy.html`
+`https://[username].github.io/iterio/privacy-policy.html`
 
 ### Step 5: Google Play デベロッパー登録
 1. https://play.google.com/console にアクセス
@@ -72,7 +72,7 @@ git push -u origin main
 ### Step 6: Play Consoleでアプリ作成
 1. 「アプリを作成」をクリック
 2. 入力項目:
-   - アプリ名: `ZENITH`
+   - アプリ名: `Iterio`
    - デフォルト言語: `日本語`
    - アプリまたはゲーム: `アプリ`
    - 有料/無料: `無料`
@@ -108,9 +108,9 @@ git push -u origin main
 
 | 商品ID | 名前 | 価格例 |
 |--------|------|--------|
-| zenith_premium_monthly | Premium月額 | ¥300/月 |
-| zenith_premium_yearly | Premium年額 | ¥2,400/年 |
-| zenith_premium_lifetime | Premium買い切り | ¥4,800 |
+| iterio_premium_monthly | Premium月額 | ¥300/月 |
+| iterio_premium_yearly | Premium年額 | ¥2,400/年 |
+| iterio_premium_lifetime | Premium買い切り | ¥4,800 |
 
 ### Step 12: BILLING_PUBLIC_KEY取得
 1. 「収益化の設定」→「ライセンス」
@@ -133,7 +133,7 @@ BILLING_PUBLIC_KEY=MIIBIjANBgkqhki...（コピーした鍵）
 ## 重要なファイルの場所
 
 ```
-ZENITH/
+Iterio/
 ├── app/build/outputs/
 │   ├── apk/release/app-release.apk  (4.6 MB)
 │   └── bundle/release/app-release.aab (8.5 MB)

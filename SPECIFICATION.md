@@ -1,9 +1,9 @@
-# ZENITH - アプリ仕様書
+# Iterio - アプリ仕様書
 
 ## 1. アプリ概要
 
 ### アプリ名
-**ZENITH** (ゼニス)
+**Iterio**
 
 ### コンセプト
 ポモドーロテクニックとエビングハウス忘却曲線を組み合わせた、集中学習支援アプリ。フォーカスモード（アプリブロック機能）により、スマートフォン依存を防ぎながら効率的な学習を実現する。
@@ -67,13 +67,13 @@
 ### ディレクトリ構造
 
 ```
-app/src/main/java/com/zenith/app/
+app/src/main/java/com/iterio/app/
 ├── data/
 │   ├── local/
 │   │   ├── entity/          # Roomエンティティ
 │   │   ├── dao/             # Data Access Objects
 │   │   ├── converter/       # 型コンバーター
-│   │   └── ZenithDatabase.kt
+│   │   └── IterioDatabase.kt
 │   └── repository/          # リポジトリ実装
 ├── domain/
 │   ├── model/               # ドメインモデル
@@ -98,14 +98,14 @@ app/src/main/java/com/zenith/app/
 ├── worker/                  # WorkManager
 ├── util/                    # ユーティリティ
 ├── widget/                  # ホームウィジェット
-└── ZenithApplication.kt
+└── IterioApplication.kt
 ```
 
 ### 主要ファイルの役割
 
 | ファイル | 役割 |
 |---------|------|
-| `ZenithDatabase.kt` | Room Database定義（version 3） |
+| `IterioDatabase.kt` | Room Database定義（version 3） |
 | `TimerService.kt` | ポモドーロタイマーのForeground Service |
 | `FocusModeService.kt` | アプリブロックのAccessibility Service |
 | `LockOverlayService.kt` | 完全ロックモードのオーバーレイ表示 |
@@ -249,7 +249,7 @@ subject_groups (1) ──< tasks (N)
 | 項目 | 状況 | 詳細 |
 |------|------|------|
 | Accessibility Service | ✅ 完了 | アプリ切り替え検出 |
-| アプリへの強制復帰 | ✅ 完了 | 他アプリ起動時にZENITHに戻る |
+| アプリへの強制復帰 | ✅ 完了 | 他アプリ起動時にIterioに戻る |
 | システムアプリ許可 | ✅ 完了 | 電話・設定・ランチャーは許可 |
 | 通常モード | ✅ 完了 | 緊急時は解除可能 |
 
@@ -340,8 +340,8 @@ BottomNavigationBar
 
 | コンポーネント | 用途 |
 |---------------|------|
-| `ZenithTopBar` | カスタムトップバー |
-| `ZenithCard` | テーマ適用カード |
+| `IterioTopBar` | カスタムトップバー |
+| `IterioCard` | テーマ適用カード |
 | `CircularTimer` | 円形タイマー表示 |
 | `PhaseIndicator` | フェーズ・サイクル表示 |
 | `TimerControls` | タイマー操作ボタン |

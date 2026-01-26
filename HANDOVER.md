@@ -1,4 +1,4 @@
-# ZENITH 開発申し送り書
+# Iterio 開発申し送り書
 
 **作成日時:** 2026-01-19
 **現在のステータス:** ビルド成功 ✅
@@ -108,15 +108,15 @@
 ## 未コミットの変更
 
 ```
-M app/src/main/java/com/zenith/app/data/billing/BillingClientWrapper.kt
-M app/src/main/java/com/zenith/app/data/billing/SignatureVerifier.kt
-M app/src/main/java/com/zenith/app/data/cloud/GoogleDriveManager.kt
-M app/src/main/java/com/zenith/app/data/repository/BackupRepositoryImpl.kt
-M app/src/main/java/com/zenith/app/di/AppModule.kt
-M app/src/main/java/com/zenith/app/domain/usecase/BillingUseCase.kt
-M app/src/main/java/com/zenith/app/ui/screens/timer/TimerScreen.kt
-M app/src/main/java/com/zenith/app/ui/screens/timer/TimerViewModel.kt
-?? app/src/main/java/com/zenith/app/data/encryption/
+M app/src/main/java/com/iterio/app/data/billing/BillingClientWrapper.kt
+M app/src/main/java/com/iterio/app/data/billing/SignatureVerifier.kt
+M app/src/main/java/com/iterio/app/data/cloud/GoogleDriveManager.kt
+M app/src/main/java/com/iterio/app/data/repository/BackupRepositoryImpl.kt
+M app/src/main/java/com/iterio/app/di/AppModule.kt
+M app/src/main/java/com/iterio/app/domain/usecase/BillingUseCase.kt
+M app/src/main/java/com/iterio/app/ui/screens/timer/TimerScreen.kt
+M app/src/main/java/com/iterio/app/ui/screens/timer/TimerViewModel.kt
+?? app/src/main/java/com/iterio/app/data/encryption/
 ```
 
 ---
@@ -152,7 +152,7 @@ M app/src/main/java/com/zenith/app/ui/screens/timer/TimerViewModel.kt
 ## ビルドコマンド
 
 ```bash
-cd C:/Users/hikit/projects/ZENITH
+cd C:/Users/hikit/projects/Iterio
 export JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-17.0.17.10-hotspot"
 ./gradlew.bat assembleDebug
 ```
