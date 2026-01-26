@@ -66,9 +66,10 @@ taskRepository.getTaskById(id).fold(
 
 ---
 
-## コミット履歴（最新3件）
+## コミット履歴（最新4件）
 
 ```
+7995d41 docs: update HANDOVER.md with Phase 1.2 completion
 30618ce refactor: apply Result<T, DomainError> pattern to all repositories (Phase 1.2)
 9048a3c refactor: extract CalendarScreen into smaller components (Phase 4)
 0cd5d6b fix: address code review issues (Phase 1-3)
@@ -152,5 +153,5 @@ cd C:/Users/hikit/projects/Iterio
 
 ### Session End: 2026-01-27
 - Branch: main
-- Last Commit: 30618ce refactor: apply Result<T, DomainError> pattern
-- Uncommitted: HANDOVER.md
+- Last Commit: 7995d41 docs: update HANDOVER.md with Phase 1.2 completion
+- Status: All pushed to remote, working tree clean
