@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ZENITH</string>
+    <string name="app_name">Iterio</string>
 
     <!-- Navigation -->
     <string name="nav_home">ホーム</string>
+    <string name="nav_tasks">タスク</string>
     <string name="nav_history">履歴</string>
     <string name="nav_calendar">カレンダー</string>
     <string name="nav_stats">統計</string>
@@ -13,6 +14,7 @@
     <string name="home_today_study">今日の学習</string>
     <string name="home_sessions">セッション</string>
     <string name="home_streak">連続日数</string>
+    <string name="home_cycles">サイクル</string>
     <string name="home_review_tasks">今日の復習タスク</string>
     <string name="home_recent_records">最近の学習記録</string>
     <string name="home_no_tasks">今日の復習タスクはありません</string>
@@ -45,6 +47,19 @@
     <string name="calendar_next_month">翌月</string>
     <string name="calendar_legend_less">少</string>
     <string name="calendar_legend_more">多</string>
+    <string name="calendar_year_month_format">%1$d年%2$d月</string>
+    <string name="calendar_study_on_date">%1$d/%2$dの学習</string>
+    <string name="calendar_study_time">学習時間: %s</string>
+    <string name="calendar_session_count">セッション数: %d</string>
+    <string name="calendar_no_study_record">この日は学習記録がありません</string>
+    <string name="calendar_tasks_on_day">この日のタスク</string>
+    <string name="calendar_day_sun">日</string>
+    <string name="calendar_day_mon">月</string>
+    <string name="calendar_day_tue">火</string>
+    <string name="calendar_day_wed">水</string>
+    <string name="calendar_day_thu">木</string>
+    <string name="calendar_day_fri">金</string>
+    <string name="calendar_day_sat">土</string>
 
     <!-- Stats Screen -->
     <string name="stats_title">統計</string>
@@ -58,20 +73,54 @@
     <string name="stats_sessions">学習セッション</string>
     <string name="stats_total_sessions">総セッション数</string>
     <string name="stats_weekly_chart">週間学習グラフ</string>
+    <string name="stats_today_study_time">今日の学習時間</string>
+    <string name="stats_sessions_completed">%dセッション完了</string>
+    <string name="stats_streak_days">%d日</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">設定</string>
     <string name="settings_notifications">通知</string>
     <string name="settings_notifications_enabled">リマインダー通知</string>
     <string name="settings_notifications_desc">学習リマインダーと復習通知を受け取る</string>
-    <string name="settings_goals">目標</string>
-    <string name="settings_daily_goal">1日の学習目標</string>
     <string name="settings_review">復習</string>
     <string name="settings_review_auto">自動復習スケジュール</string>
     <string name="settings_review_auto_desc">エビングハウス忘却曲線に基づく復習タスクを自動生成</string>
+    <string name="settings_default_review_count">デフォルト復習回数</string>
+    <string name="settings_default_review_count_desc">タスクの復習回数のデフォルト値</string>
+    <string name="settings_review_count_option">%d回</string>
+    <string name="settings_review_count_min">1回</string>
+    <string name="settings_review_count_max">6回</string>
+    <string name="settings_review_count_premium_hint">3回以上はPremiumが必要</string>
     <string name="settings_about">アプリについて</string>
     <string name="settings_version">バージョン</string>
     <string name="settings_build">ビルド</string>
+
+    <!-- Settings Screen - Additional -->
+    <string name="settings_pomodoro">ポモドーロタイマー</string>
+    <string name="settings_work_duration">作業時間</string>
+    <string name="settings_short_break">短休憩</string>
+    <string name="settings_long_break">長休憩</string>
+    <string name="settings_cycles_before_long_break">長休憩までのサイクル数</string>
+    <string name="settings_focus_mode">フォーカスモード</string>
+    <string name="settings_focus_mode_enable">フォーカスモードを有効化</string>
+    <string name="settings_focus_mode_enable_desc">タイマー中はスマートフォンの使用を制限</string>
+    <string name="settings_focus_mode_strict">完全ロックモード</string>
+    <string name="settings_focus_mode_strict_desc">タイマー開始時に完全ロックをデフォルトで有効にする</string>
+    <string name="settings_allowed_apps">許可アプリ</string>
+    <string name="settings_allowed_apps_desc">ロックモード中に使用を許可するアプリ</string>
+    <string name="settings_allowed_apps_selected">%d個選択中</string>
+    <string name="settings_timer">タイマー</string>
+    <string name="settings_auto_loop">自動ループ</string>
+    <string name="settings_auto_loop_desc">ポモドーロサイクル完了後も自動で次のサイクルを開始</string>
+    <string name="settings_premium">Premium</string>
+    <string name="settings_data_management">データ管理</string>
+    <string name="settings_backup">バックアップ</string>
+    <string name="settings_backup_desc">データのエクスポート・インポート</string>
+
+    <!-- Settings Screen - Language -->
+    <string name="settings_language">言語 / Language</string>
+    <string name="settings_language_japanese">日本語</string>
+    <string name="settings_language_english">English</string>
 
     <!-- Common -->
     <string name="loading">読み込み中…</string>
@@ -80,11 +129,20 @@
     <string name="cancel">キャンセル</string>
     <string name="delete">削除</string>
     <string name="edit">編集</string>
+    <string name="save">保存</string>
+    <string name="add">追加</string>
+    <string name="ok">OK</string>
     <string name="days">日</string>
     <string name="minutes">分</string>
+    <string name="minutes_unit">%d分</string>
+    <string name="minutes_range">%1$d分〜%2$d分</string>
+    <string name="cycles_unit">%dサイクル</string>
+    <string name="details">詳細</string>
+    <string name="decrease_one_minute">1分減らす</string>
+    <string name="increase_one_minute">1分増やす</string>
 
     <!-- Focus Mode / Accessibility Service -->
-    <string name="accessibility_service_description">ZENITHのフォーカスモードを有効にします。学習中に他のアプリへのアクセスを制限し、集中力を高めます。</string>
+    <string name="accessibility_service_description">Iterioのフォーカスモードを有効にします。学習中に他のアプリへのアクセスを制限し、集中力を高めます。</string>
     <string name="focus_mode_title">フォーカスモード</string>
     <string name="focus_mode_active">フォーカスモード有効中</string>
     <string name="focus_mode_blocked_message">フォーカスモード中です。学習を続けましょう！</string>
@@ -115,10 +173,53 @@
     <string name="tasks_add_task">タスクを追加</string>
     <string name="tasks_no_groups">科目グループがありません</string>
     <string name="tasks_no_tasks">タスクがありません</string>
+    <string name="tasks_add_hint">右下の＋ボタンで追加してください</string>
+    <string name="tasks_add">追加</string>
+    <string name="tasks_add_group_button">科目グループを追加</string>
+    <string name="tasks_group_name">グループ名</string>
+    <string name="tasks_group_name_hint">例: 数学</string>
+    <string name="tasks_select_color">色を選択</string>
+    <string name="tasks_edit_group">グループを編集</string>
+    <string name="tasks_delete_group">このグループを削除</string>
+    <string name="tasks_delete_confirm">削除確認</string>
+    <string name="tasks_delete_group_message">「%s」を削除しますか？\nこのグループ内のタスクも全て削除されます。</string>
+    <string name="tasks_task_name">タスク名</string>
+    <string name="tasks_task_name_hint">例: 微分積分</string>
+    <string name="tasks_specify_duration">作業時間を指定</string>
+    <string name="tasks_use_default_duration">設定のデフォルト値（%d分）を使用</string>
+    <string name="tasks_use_default">設定のデフォルト値を使用</string>
+    <string name="tasks_edit_task">タスクを編集</string>
+    <string name="tasks_progress_note">進捗メモ</string>
+    <string name="tasks_progress_note_hint">例: 第3章まで完了</string>
+    <string name="tasks_progress_percent">進捗率 (%)</string>
+    <string name="tasks_progress_percent_hint">例: 60</string>
+    <string name="tasks_next_goal">次回の目標</string>
+    <string name="tasks_next_goal_hint">例: 第4章 p.80-100</string>
+    <string name="tasks_start_timer_with_task">このタスクでタイマー開始</string>
+    <string name="tasks_delete_task">このタスクを削除</string>
+    <string name="tasks_delete_task_message">「%s」を削除しますか？</string>
+    <string name="tasks_next_prefix">次回: %s</string>
+    <string name="tasks_review_count">復習回数</string>
+    <string name="tasks_review_count_option">%d回</string>
+    <string name="tasks_review_count_premium_only">Premium限定</string>
+
+    <!-- Schedule -->
+    <string name="schedule_title">スケジュール</string>
+    <string name="schedule_repeat_days">繰り返し曜日</string>
+    <string name="schedule_deadline_date">期限日</string>
+    <string name="schedule_specific_date">実施日</string>
+    <string name="schedule_select_date">日付を選択</string>
+    <string name="schedule_day_mon">月</string>
+    <string name="schedule_day_tue">火</string>
+    <string name="schedule_day_wed">水</string>
+    <string name="schedule_day_thu">木</string>
+    <string name="schedule_day_fri">金</string>
+    <string name="schedule_day_sat">土</string>
+    <string name="schedule_day_sun">日</string>
 
     <!-- Widget -->
     <string name="widget_description">本日の学習時間とストリークを表示</string>
-    <string name="widget_name">ZENITH学習ウィジェット</string>
+    <string name="widget_name">Iterio学習ウィジェット</string>
     <string name="widget_loading">読み込み中…</string>
 
     <!-- Lock Overlay -->
@@ -141,4 +242,32 @@
     <string name="notification_action_stop">停止</string>
     <string name="notification_channel_name">タイマー</string>
     <string name="notification_channel_description">ポモドーロタイマーの通知</string>
+
+    <!-- Review Task Management -->
+    <string name="settings_review_task_management">復習タスク管理</string>
+    <string name="settings_review_task_count">復習タスク: %1$d件（未完了: %2$d件）</string>
+    <string name="settings_review_task_show_list">一覧を表示</string>
+    <string name="settings_review_task_delete_all">全て削除</string>
+    <string name="settings_review_task_delete_all_confirm">全ての復習タスクを削除しますか？</string>
+    <string name="settings_review_task_delete_all_message">この操作は取り消せません。%d件の復習タスクが削除されます。</string>
+    <string name="settings_review_task_list_title">復習タスク一覧</string>
+    <string name="settings_review_task_empty">復習タスクがありません</string>
+    <string name="settings_review_task_scheduled">予定日: %s</string>
+    <string name="settings_review_task_completed">完了</string>
+    <string name="settings_review_task_pending">未完了</string>
+    <string name="settings_review_task_review_number">第%d回復習</string>
+    <string name="close">閉じる</string>
+
+    <!-- Task Review Enabled -->
+    <string name="tasks_review_enabled">復習タスクを生成</string>
+    <string name="tasks_review_enabled_desc">タイマー完了時に復習タスクを自動生成</string>
+
+    <!-- BGM Settings -->
+    <string name="settings_bgm">BGM</string>
+    <string name="settings_bgm_track">BGMトラック</string>
+    <string name="settings_bgm_track_none">未選択</string>
+    <string name="settings_bgm_volume">音量</string>
+    <string name="settings_bgm_volume_value">%d%%</string>
+    <string name="settings_bgm_auto_play">自動再生</string>
+    <string name="settings_bgm_auto_play_desc">タイマー開始時にBGMを自動再生</string>
 </resources>

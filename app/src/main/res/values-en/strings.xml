@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Iterio</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_tasks">Tasks</string>
+    <string name="nav_history">History</string>
+    <string name="nav_calendar">Calendar</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Home Screen -->
+    <string name="home_today_study">Today\'s Study</string>
+    <string name="home_sessions">Sessions</string>
+    <string name="home_streak">Streak</string>
+    <string name="home_cycles">Cycles</string>
+    <string name="home_review_tasks">Today\'s Review Tasks</string>
+    <string name="home_recent_records">Recent Study Records</string>
+    <string name="home_no_tasks">No review tasks for today</string>
+    <string name="home_no_records">No study records yet</string>
+
+    <!-- Record Input -->
+    <string name="record_add">Add Study Record</string>
+    <string name="record_edit">Edit Record</string>
+    <string name="record_subject">Subject</string>
+    <string name="record_subject_hint">e.g., Math, English, Physics</string>
+    <string name="record_chapter">Chapter/Unit</string>
+    <string name="record_chapter_hint">e.g., Chapter 3: Derivatives</string>
+    <string name="record_page_start">Start Page</string>
+    <string name="record_page_end">End Page</string>
+    <string name="record_duration">Study Time (min)</string>
+    <string name="record_notes">Notes</string>
+    <string name="record_notes_hint">Note your learnings and insights</string>
+    <string name="record_save">Save</string>
+    <string name="record_update">Update</string>
+    <string name="record_templates">Templates</string>
+
+    <!-- History Screen -->
+    <string name="history_title">Study History</string>
+    <string name="history_empty">No study records yet</string>
+    <string name="history_filter_all">All</string>
+
+    <!-- Calendar Screen -->
+    <string name="calendar_title">Calendar</string>
+    <string name="calendar_prev_month">Previous Month</string>
+    <string name="calendar_next_month">Next Month</string>
+    <string name="calendar_legend_less">Less</string>
+    <string name="calendar_legend_more">More</string>
+    <string name="calendar_year_month_format">%2$d/%1$d</string>
+    <string name="calendar_study_on_date">Study on %1$d/%2$d</string>
+    <string name="calendar_study_time">Study time: %s</string>
+    <string name="calendar_session_count">Sessions: %d</string>
+    <string name="calendar_no_study_record">No study records for this day</string>
+    <string name="calendar_tasks_on_day">Tasks for this day</string>
+    <string name="calendar_day_sun">Sun</string>
+    <string name="calendar_day_mon">Mon</string>
+    <string name="calendar_day_tue">Tue</string>
+    <string name="calendar_day_wed">Wed</string>
+    <string name="calendar_day_thu">Thu</string>
+    <string name="calendar_day_fri">Fri</string>
+    <string name="calendar_day_sat">Sat</string>
+
+    <!-- Stats Screen -->
+    <string name="stats_title">Statistics</string>
+    <string name="stats_streak">Study Streak</string>
+    <string name="stats_current_streak">Current Streak</string>
+    <string name="stats_max_streak">Best Record</string>
+    <string name="stats_study_time">Study Time</string>
+    <string name="stats_this_week">This Week</string>
+    <string name="stats_this_month">This Month</string>
+    <string name="stats_daily_average">Daily Average</string>
+    <string name="stats_sessions">Study Sessions</string>
+    <string name="stats_total_sessions">Total Sessions</string>
+    <string name="stats_weekly_chart">Weekly Study Chart</string>
+    <string name="stats_today_study_time">Today\'s Study Time</string>
+    <string name="stats_sessions_completed">%d sessions completed</string>
+    <string name="stats_streak_days">%d days</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notifications_enabled">Reminder Notifications</string>
+    <string name="settings_notifications_desc">Receive study reminders and review notifications</string>
+    <string name="settings_review">Review</string>
+    <string name="settings_review_auto">Auto Review Schedule</string>
+    <string name="settings_review_auto_desc">Auto-generate review tasks based on the Ebbinghaus forgetting curve</string>
+    <string name="settings_default_review_count">Default Review Count</string>
+    <string name="settings_default_review_count_desc">Default number of reviews for tasks</string>
+    <string name="settings_review_count_option">%d times</string>
+    <string name="settings_review_count_min">1 time</string>
+    <string name="settings_review_count_max">6 times</string>
+    <string name="settings_review_count_premium_hint">3+ times requires Premium</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_build">Build</string>
+
+    <!-- Settings Screen - Additional -->
+    <string name="settings_pomodoro">Pomodoro Timer</string>
+    <string name="settings_work_duration">Work Duration</string>
+    <string name="settings_short_break">Short Break</string>
+    <string name="settings_long_break">Long Break</string>
+    <string name="settings_cycles_before_long_break">Cycles Before Long Break</string>
+    <string name="settings_focus_mode">Focus Mode</string>
+    <string name="settings_focus_mode_enable">Enable Focus Mode</string>
+    <string name="settings_focus_mode_enable_desc">Restrict smartphone usage during timer</string>
+    <string name="settings_focus_mode_strict">Strict Mode</string>
+    <string name="settings_focus_mode_strict_desc">Enable complete lock by default when starting timer</string>
+    <string name="settings_allowed_apps">Allowed Apps</string>
+    <string name="settings_allowed_apps_desc">Apps allowed during lock mode</string>
+    <string name="settings_allowed_apps_selected">%d selected</string>
+    <string name="settings_timer">Timer</string>
+    <string name="settings_auto_loop">Auto Loop</string>
+    <string name="settings_auto_loop_desc">Automatically start the next cycle after completion</string>
+    <string name="settings_premium">Premium</string>
+    <string name="settings_data_management">Data Management</string>
+    <string name="settings_backup">Backup</string>
+    <string name="settings_backup_desc">Export and import data</string>
+
+    <!-- Settings Screen - Language -->
+    <string name="settings_language">Language</string>
+    <string name="settings_language_japanese">Japanese</string>
+    <string name="settings_language_english">English</string>
+
+    <!-- Common -->
+    <string name="loading">Loading…</string>
+    <string name="error_generic">An error occurred</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="save">Save</string>
+    <string name="add">Add</string>
+    <string name="ok">OK</string>
+    <string name="days">days</string>
+    <string name="minutes">min</string>
+    <string name="minutes_unit">%d min</string>
+    <string name="minutes_range">%1$d min - %2$d min</string>
+    <string name="cycles_unit">%d cycles</string>
+    <string name="details">Details</string>
+    <string name="decrease_one_minute">Decrease by 1 minute</string>
+    <string name="increase_one_minute">Increase by 1 minute</string>
+
+    <!-- Focus Mode / Accessibility Service -->
+    <string name="accessibility_service_description">Enable Iterio\'s Focus Mode. Restricts access to other apps during study sessions to improve concentration.</string>
+    <string name="focus_mode_title">Focus Mode</string>
+    <string name="focus_mode_active">Focus Mode Active</string>
+    <string name="focus_mode_blocked_message">Focus Mode is active. Keep studying!</string>
+    <string name="focus_mode_enable_accessibility">Please enable Accessibility Service to use Focus Mode</string>
+    <string name="focus_mode_strict">Strict Mode</string>
+    <string name="focus_mode_strict_desc">Complete lock (cannot be disabled)</string>
+    <string name="focus_mode_normal">Normal Mode</string>
+    <string name="focus_mode_normal_desc">Can be disabled in emergencies</string>
+
+    <!-- Timer -->
+    <string name="timer_title">Timer</string>
+    <string name="timer_work">Working</string>
+    <string name="timer_short_break">Short Break</string>
+    <string name="timer_long_break">Long Break</string>
+    <string name="timer_idle">Ready</string>
+    <string name="timer_start">Start</string>
+    <string name="timer_pause">Pause</string>
+    <string name="timer_resume">Resume</string>
+    <string name="timer_skip">Skip</string>
+    <string name="timer_stop">Stop</string>
+    <string name="timer_finish_title">Great job!</string>
+    <string name="timer_cancel_title">End Timer?</string>
+    <string name="timer_cancel_message">Current progress will be recorded.</string>
+
+    <!-- Tasks -->
+    <string name="tasks_title">Task Management</string>
+    <string name="tasks_add_group">Add Group</string>
+    <string name="tasks_add_task">Add Task</string>
+    <string name="tasks_no_groups">No subject groups</string>
+    <string name="tasks_no_tasks">No tasks</string>
+    <string name="tasks_add_hint">Tap the + button to add one</string>
+    <string name="tasks_add">Add</string>
+    <string name="tasks_add_group_button">Add Subject Group</string>
+    <string name="tasks_group_name">Group Name</string>
+    <string name="tasks_group_name_hint">e.g., Math</string>
+    <string name="tasks_select_color">Select Color</string>
+    <string name="tasks_edit_group">Edit Group</string>
+    <string name="tasks_delete_group">Delete this group</string>
+    <string name="tasks_delete_confirm">Confirm Deletion</string>
+    <string name="tasks_delete_group_message">Delete "%s"?\nAll tasks in this group will also be deleted.</string>
+    <string name="tasks_task_name">Task Name</string>
+    <string name="tasks_task_name_hint">e.g., Calculus</string>
+    <string name="tasks_specify_duration">Specify work duration</string>
+    <string name="tasks_use_default_duration">Using default setting (%d min)</string>
+    <string name="tasks_use_default">Using default setting</string>
+    <string name="tasks_edit_task">Edit Task</string>
+    <string name="tasks_progress_note">Progress Note</string>
+    <string name="tasks_progress_note_hint">e.g., Completed chapter 3</string>
+    <string name="tasks_progress_percent">Progress (%)</string>
+    <string name="tasks_progress_percent_hint">e.g., 60</string>
+    <string name="tasks_next_goal">Next Goal</string>
+    <string name="tasks_next_goal_hint">e.g., Chapter 4, p.80-100</string>
+    <string name="tasks_start_timer_with_task">Start timer with this task</string>
+    <string name="tasks_delete_task">Delete this task</string>
+    <string name="tasks_delete_task_message">Delete "%s"?</string>
+    <string name="tasks_next_prefix">Next: %s</string>
+    <string name="tasks_review_count">Review Count</string>
+    <string name="tasks_review_count_option">%d times</string>
+    <string name="tasks_review_count_premium_only">Premium only</string>
+
+    <!-- Schedule -->
+    <string name="schedule_title">Schedule</string>
+    <string name="schedule_repeat_days">Repeat Days</string>
+    <string name="schedule_deadline_date">Deadline</string>
+    <string name="schedule_specific_date">Specific Date</string>
+    <string name="schedule_select_date">Select Date</string>
+    <string name="schedule_day_mon">Mon</string>
+    <string name="schedule_day_tue">Tue</string>
+    <string name="schedule_day_wed">Wed</string>
+    <string name="schedule_day_thu">Thu</string>
+    <string name="schedule_day_fri">Fri</string>
+    <string name="schedule_day_sat">Sat</string>
+    <string name="schedule_day_sun">Sun</string>
+
+    <!-- Widget -->
+    <string name="widget_description">Display today\'s study time and streak</string>
+    <string name="widget_name">Iterio Study Widget</string>
+    <string name="widget_loading">Loading…</string>
+
+    <!-- Lock Overlay -->
+    <string name="lock_overlay_message">Complete Lock Mode Active\nStay focused on your work</string>
+    <string name="lock_overlay_tap_to_return">Tap to return to app</string>
+    <string name="timer_phase_work">Working</string>
+    <string name="timer_phase_break">Break</string>
+    <string name="overlay_permission_required">\"Display over other apps\" permission is required for Complete Lock Mode</string>
+    <string name="overlay_permission_grant">Grant Permission</string>
+
+    <!-- Notification Strings -->
+    <string name="notification_phase_work">Working</string>
+    <string name="notification_phase_short_break">Short Break</string>
+    <string name="notification_phase_long_break">Long Break</string>
+    <string name="notification_phase_completed">Completed!</string>
+    <string name="notification_phase_ready">Ready</string>
+    <string name="notification_cycle_format">%1$s (Cycle %2$d/%3$d)</string>
+    <string name="notification_action_pause">Pause</string>
+    <string name="notification_action_resume">Resume</string>
+    <string name="notification_action_stop">Stop</string>
+    <string name="notification_channel_name">Timer</string>
+    <string name="notification_channel_description">Pomodoro timer notifications</string>
+
+    <!-- Review Task Management -->
+    <string name="settings_review_task_management">Review Task Management</string>
+    <string name="settings_review_task_count">Review Tasks: %1$d (Incomplete: %2$d)</string>
+    <string name="settings_review_task_show_list">Show List</string>
+    <string name="settings_review_task_delete_all">Delete All</string>
+    <string name="settings_review_task_delete_all_confirm">Delete all review tasks?</string>
+    <string name="settings_review_task_delete_all_message">This action cannot be undone. %d review tasks will be deleted.</string>
+    <string name="settings_review_task_list_title">Review Tasks</string>
+    <string name="settings_review_task_empty">No review tasks</string>
+    <string name="settings_review_task_scheduled">Scheduled: %s</string>
+    <string name="settings_review_task_completed">Completed</string>
+    <string name="settings_review_task_pending">Pending</string>
+    <string name="settings_review_task_review_number">Review #%d</string>
+    <string name="close">Close</string>
+
+    <!-- Task Review Enabled -->
+    <string name="tasks_review_enabled">Generate review tasks</string>
+    <string name="tasks_review_enabled_desc">Auto-generate review tasks when timer completes</string>
+
+    <!-- BGM Settings -->
+    <string name="settings_bgm">BGM</string>
+    <string name="settings_bgm_track">BGM Track</string>
+    <string name="settings_bgm_track_none">Not selected</string>
+    <string name="settings_bgm_volume">Volume</string>
+    <string name="settings_bgm_volume_value">%d%%</string>
+    <string name="settings_bgm_auto_play">Auto Play</string>
+    <string name="settings_bgm_auto_play_desc">Auto-play BGM when timer starts</string>
+</resources>
