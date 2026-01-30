@@ -41,4 +41,19 @@ interface TaskRepository {
      * 日付範囲のタスク数を取得
      */
     suspend fun getTaskCountByDateRange(startDate: LocalDate, endDate: LocalDate): Result<Map<LocalDate, Int>, DomainError>
+
+    /**
+     * 日付範囲のタスク数をリアクティブに観察
+     */
+    fun observeTaskCountByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, Int>>
+
+    /**
+     * 特定日のタスクをリアクティブに観察
+     */
+    fun observeTasksForDate(date: LocalDate): Flow<List<Task>>
+
+    /**
+     * 日付範囲のタスクごとのグループ色をリアクティブに観察（カレンダードット色用）
+     */
+    fun observeGroupColorsByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, List<String>>>
 }

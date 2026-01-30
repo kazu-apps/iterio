@@ -16,21 +16,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.iterio.app.domain.model.Task
+import com.iterio.app.R
+import com.iterio.app.domain.model.DeadlineItem
 import com.iterio.app.ui.components.EmptySectionMessage
 import com.iterio.app.ui.components.IterioCard
 import com.iterio.app.ui.theme.AccentError
@@ -41,16 +47,23 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 /**
- * 期限が近いタスクセクション
+ * 期限が近いタスク・グループセクション（タスク期限とグループ期限を分離表示）
  */
 @Composable
 fun UpcomingDeadlinesSection(
-    tasks: List<Task>,
+    taskDeadlines: List<DeadlineItem.TaskDeadline>,
+    groupDeadlines: List<DeadlineItem.GroupDeadline>,
+    totalDeadlineCount: Int,
     onStartTimer: (Long) -> Unit,
+    onViewAll: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isEmpty = taskDeadlines.isEmpty() && groupDeadlines.isEmpty()
+    val totalDisplayed = taskDeadlines.size + groupDeadlines.size
+
     IterioCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Main header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -65,14 +78,22 @@ fun UpcomingDeadlinesSection(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "期限が近いタスク",
+                        text = stringResource(R.string.deadline_section_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-                if (tasks.isNotEmpty()) {
+                if (totalDeadlineCount > totalDisplayed) {
+                    TextButton(onClick = onViewAll) {
+                        Text(
+                            text = stringResource(R.string.deadline_view_all, totalDeadlineCount),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = AccentTeal
+                        )
+                    }
+                } else if (!isEmpty) {
                     Text(
-                        text = "${tasks.size}件",
+                        text = "${totalDeadlineCount}件",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -81,18 +102,51 @@ fun UpcomingDeadlinesSection(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (tasks.isEmpty()) {
+            if (isEmpty) {
                 EmptySectionMessage(
                     icon = Icons.Default.DateRange,
-                    message = "期限が近いタスクはありません"
+                    message = stringResource(R.string.deadline_empty)
                 )
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    tasks.forEach { task ->
-                        UpcomingDeadlineItem(
-                            task = task,
-                            onStartTimer = { onStartTimer(task.id) }
-                        )
+                // Task deadlines sub-section
+                if (taskDeadlines.isNotEmpty()) {
+                    DeadlineSubSectionHeader(
+                        icon = Icons.Default.DateRange,
+                        title = stringResource(R.string.deadline_task_subtitle),
+                        count = taskDeadlines.size
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        taskDeadlines.forEach { item ->
+                            TaskDeadlineItem(
+                                item = item,
+                                onStartTimer = { onStartTimer(item.taskId) }
+                            )
+                        }
+                    }
+                }
+
+                // Divider between sub-sections
+                if (taskDeadlines.isNotEmpty() && groupDeadlines.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // Group deadlines sub-section
+                if (groupDeadlines.isNotEmpty()) {
+                    DeadlineSubSectionHeader(
+                        icon = Icons.Default.Folder,
+                        title = stringResource(R.string.deadline_group_subtitle),
+                        count = groupDeadlines.size
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        groupDeadlines.forEach { item ->
+                            GroupDeadlineItem(item = item)
+                        }
                     }
                 }
             }
@@ -101,15 +155,40 @@ fun UpcomingDeadlinesSection(
 }
 
 @Composable
-private fun UpcomingDeadlineItem(
-    task: Task,
+private fun DeadlineSubSectionHeader(
+    icon: ImageVector,
+    title: String,
+    count: Int
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "${count}件",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun TaskDeadlineItem(
+    item: DeadlineItem.TaskDeadline,
     onStartTimer: () -> Unit
 ) {
     val today = LocalDate.now()
-    val daysUntilDeadline = task.deadlineDate?.let {
-        ChronoUnit.DAYS.between(today, it).toInt()
-    } ?: 0
-
+    val daysUntilDeadline = ChronoUnit.DAYS.between(today, item.deadlineDate).toInt()
     val urgencyColor = getUrgencyColor(daysUntilDeadline)
     val dateFormatter = DateTimeFormatter.ofPattern("M/d")
 
@@ -132,7 +211,6 @@ private fun UpcomingDeadlineItem(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                // Urgency indicator
                 Box(
                     modifier = Modifier
                         .size(32.dp)
@@ -150,22 +228,19 @@ private fun UpcomingDeadlineItem(
 
                 Column {
                     Text(
-                        text = task.name,
+                        text = item.name,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
                     )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        task.deadlineDate?.let { deadline ->
-                            Text(
-                                text = "期限: ${deadline.format(dateFormatter)}（あと${daysUntilDeadline}日）",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = urgencyColor
-                            )
-                        }
-                    }
+                    Text(
+                        text = stringResource(
+                            R.string.deadline_date_format,
+                            item.deadlineDate.format(dateFormatter),
+                            daysUntilDeadline
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = urgencyColor
+                    )
                 }
             }
 
@@ -177,9 +252,81 @@ private fun UpcomingDeadlineItem(
             ) {
                 Icon(
                     Icons.Default.PlayArrow,
-                    contentDescription = "タイマー開始",
+                    contentDescription = stringResource(R.string.deadline_start_timer),
                     tint = MaterialTheme.colorScheme.primary
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupDeadlineItem(
+    item: DeadlineItem.GroupDeadline
+) {
+    val today = LocalDate.now()
+    val daysUntilDeadline = ChronoUnit.DAYS.between(today, item.deadlineDate).toInt()
+    val urgencyColor = getUrgencyColor(daysUntilDeadline)
+    val dateFormatter = DateTimeFormatter.ofPattern("M/d")
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(urgencyColor.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = urgencyColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = item.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.deadline_group_label),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        text = stringResource(
+                            R.string.deadline_date_format,
+                            item.deadlineDate.format(dateFormatter),
+                            daysUntilDeadline
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = urgencyColor
+                    )
+                }
             }
         }
     }

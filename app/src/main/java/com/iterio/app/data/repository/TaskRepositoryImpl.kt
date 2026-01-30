@@ -7,6 +7,7 @@ import com.iterio.app.domain.common.Result
 import com.iterio.app.domain.model.Task
 import com.iterio.app.domain.repository.TaskRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -126,4 +127,91 @@ class TaskRepositoryImpl @Inject constructor(
 
             result.toMap()
         }
+
+    override fun observeTaskCountByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, Int>> {
+        val startDateStr = startDate.toString()
+        val endDateStr = endDate.toString()
+        return combine(
+            taskDao.observeTaskCountByDateRange(startDateStr, endDateStr),
+            taskDao.observeRepeatTasks()
+        ) { counts, repeatTasks ->
+            val result = mutableMapOf<LocalDate, Int>()
+
+            for (item in counts) {
+                item.date?.let { dateStr ->
+                    try {
+                        val date = LocalDate.parse(dateStr)
+                        result[date] = (result[date] ?: 0) + item.count
+                    } catch (_: Exception) {
+                        // Skip invalid dates
+                    }
+                }
+            }
+
+            var currentDate = startDate
+            while (!currentDate.isAfter(endDate)) {
+                val dayOfWeek = currentDate.dayOfWeek.value
+                val repeatCount = repeatTasks.count { task ->
+                    Task.parseRepeatDays(task.repeatDays).contains(dayOfWeek)
+                }
+                if (repeatCount > 0) {
+                    result[currentDate] = (result[currentDate] ?: 0) + repeatCount
+                }
+                currentDate = currentDate.plusDays(1)
+            }
+
+            result.toMap()
+        }
+    }
+
+    override fun observeTasksForDate(date: LocalDate): Flow<List<Task>> {
+        val dateStr = date.toString()
+        val dayOfWeek = date.dayOfWeek.value.toString()
+        return taskDao.observeTasksForDate(dateStr, dayOfWeek).map { entities ->
+            mapper.toDomainList(entities)
+        }
+    }
+
+    override fun observeGroupColorsByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, List<String>>> {
+        val startDateStr = startDate.toString()
+        val endDateStr = endDate.toString()
+        return combine(
+            taskDao.observeGroupColorsByDateRange(startDateStr, endDateStr),
+            taskDao.observeRepeatTaskGroupColors()
+        ) { dateColors, repeatColors ->
+            val result = mutableMapOf<LocalDate, MutableList<String>>()
+
+            // deadline/specific タスクの色を追加
+            for (item in dateColors) {
+                item.date?.let { dateStr ->
+                    try {
+                        val date = LocalDate.parse(dateStr)
+                        val color = item.colorHex ?: DEFAULT_GROUP_COLOR
+                        result.getOrPut(date) { mutableListOf() }.add(color)
+                    } catch (_: Exception) {
+                        // Skip invalid dates
+                    }
+                }
+            }
+
+            // 繰り返しタスクの色を追加
+            var currentDate = startDate
+            while (!currentDate.isAfter(endDate)) {
+                val dayOfWeek = currentDate.dayOfWeek.value
+                for (repeatTask in repeatColors) {
+                    if (Task.parseRepeatDays(repeatTask.repeatDays).contains(dayOfWeek)) {
+                        val color = repeatTask.colorHex ?: DEFAULT_GROUP_COLOR
+                        result.getOrPut(currentDate) { mutableListOf() }.add(color)
+                    }
+                }
+                currentDate = currentDate.plusDays(1)
+            }
+
+            result.mapValues { it.value.toList() }
+        }
+    }
+
+    companion object {
+        private const val DEFAULT_GROUP_COLOR = "#00838F"
+    }
 }

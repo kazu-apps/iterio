@@ -171,6 +171,69 @@ class FakeTaskRepository : TaskRepository {
         return Result.Success(result)
     }
 
+    override fun observeTaskCountByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, Int>> {
+        return tasks.map { list ->
+            val result = mutableMapOf<LocalDate, Int>()
+            var current = startDate
+            while (!current.isAfter(endDate)) {
+                val dayOfWeek = current.dayOfWeek.value
+                val count = list.count { task ->
+                    if (!task.isActive) return@count false
+                    when (task.scheduleType) {
+                        ScheduleType.REPEAT -> task.repeatDays.contains(dayOfWeek)
+                        ScheduleType.SPECIFIC -> task.specificDate == current
+                        ScheduleType.DEADLINE -> task.deadlineDate == current
+                        ScheduleType.NONE -> false
+                    }
+                }
+                if (count > 0) {
+                    result[current] = count
+                }
+                current = current.plusDays(1)
+            }
+            result.toMap()
+        }
+    }
+
+    override fun observeTasksForDate(date: LocalDate): Flow<List<Task>> {
+        val dayOfWeek = date.dayOfWeek.value
+        return tasks.map { list ->
+            list.filter { task ->
+                if (!task.isActive) return@filter false
+                when (task.scheduleType) {
+                    ScheduleType.REPEAT -> task.repeatDays.contains(dayOfWeek)
+                    ScheduleType.SPECIFIC -> task.specificDate == date
+                    ScheduleType.DEADLINE -> task.deadlineDate == date
+                    ScheduleType.NONE -> false
+                }
+            }
+        }
+    }
+
+    override fun observeGroupColorsByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, List<String>>> {
+        return tasks.map { list ->
+            val result = mutableMapOf<LocalDate, MutableList<String>>()
+            var current = startDate
+            while (!current.isAfter(endDate)) {
+                val dayOfWeek = current.dayOfWeek.value
+                list.filter { task ->
+                    if (!task.isActive) return@filter false
+                    when (task.scheduleType) {
+                        ScheduleType.REPEAT -> task.repeatDays.contains(dayOfWeek)
+                        ScheduleType.SPECIFIC -> task.specificDate == current
+                        ScheduleType.DEADLINE -> task.deadlineDate == current
+                        ScheduleType.NONE -> false
+                    }
+                }.forEach { task ->
+                    val color = task.groupColor ?: "#00838F"
+                    result.getOrPut(current) { mutableListOf() }.add(color)
+                }
+                current = current.plusDays(1)
+            }
+            result.mapValues { it.value.toList() }
+        }
+    }
+
     // ==================== Test helpers ====================
 
     /**

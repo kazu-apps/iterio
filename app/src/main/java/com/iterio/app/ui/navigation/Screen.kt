@@ -87,6 +87,13 @@ sealed class Screen(
         unselectedIcon = Icons.Outlined.EventRepeat
     )
 
+    data object DeadlineList : Screen(
+        route = "deadline_list",
+        titleResId = R.string.deadline_list_title,
+        selectedIcon = Icons.Filled.DateRange,
+        unselectedIcon = Icons.Outlined.DateRange
+    )
+
     companion object {
         val bottomNavItems = listOf(Home, Tasks, Calendar, Stats, Settings)
     }

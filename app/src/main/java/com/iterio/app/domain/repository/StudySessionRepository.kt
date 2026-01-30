@@ -13,6 +13,8 @@ interface StudySessionRepository {
     suspend fun getSessionById(id: Long): Result<StudySession?, DomainError>
     suspend fun getTotalMinutesForDay(date: LocalDate): Result<Int, DomainError>
     suspend fun getTotalCyclesForDay(date: LocalDate): Result<Int, DomainError>
+    fun observeTotalMinutesForDay(date: LocalDate): Flow<Int>
+    fun observeTotalCyclesForDay(date: LocalDate): Flow<Int>
     suspend fun insertSession(session: StudySession): Result<Long, DomainError>
     suspend fun updateSession(session: StudySession): Result<Unit, DomainError>
     suspend fun deleteSession(session: StudySession): Result<Unit, DomainError>

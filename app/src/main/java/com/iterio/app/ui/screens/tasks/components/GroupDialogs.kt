@@ -8,19 +8,29 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,19 +44,27 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.iterio.app.R
 import com.iterio.app.domain.model.SubjectGroup
+import com.iterio.app.ui.theme.AccentTeal
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 private val GROUP_COLORS = listOf(
     "#00838F", "#1976D2", "#388E3C", "#F57C00",
     "#D32F2F", "#7B1FA2", "#5D4037", "#455A64"
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AddGroupDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String) -> Unit
+    onConfirm: (String, String, Boolean, LocalDate?) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var selectedColor by remember { mutableStateOf("#00838F") }
+    var hasDeadline by remember { mutableStateOf(false) }
+    var deadlineDate by remember { mutableStateOf<LocalDate?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -67,11 +85,17 @@ internal fun AddGroupDialog(
                     selectedColor = selectedColor,
                     onColorSelected = { selectedColor = it }
                 )
+                DeadlineToggleSection(
+                    hasDeadline = hasDeadline,
+                    deadlineDate = deadlineDate,
+                    onHasDeadlineChange = { hasDeadline = it },
+                    onDeadlineDateChange = { deadlineDate = it }
+                )
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(name, selectedColor) },
+                onClick = { onConfirm(name, selectedColor, hasDeadline, deadlineDate) },
                 enabled = name.isNotBlank()
             ) {
                 Text(stringResource(R.string.add))
@@ -85,6 +109,7 @@ internal fun AddGroupDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun EditGroupDialog(
     group: SubjectGroup,
@@ -94,6 +119,8 @@ internal fun EditGroupDialog(
 ) {
     var name by remember { mutableStateOf(group.name) }
     var selectedColor by remember { mutableStateOf(group.colorHex) }
+    var hasDeadline by remember { mutableStateOf(group.hasDeadline) }
+    var deadlineDate by remember { mutableStateOf(group.deadlineDate) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     if (showDeleteConfirm) {
@@ -136,6 +163,12 @@ internal fun EditGroupDialog(
                         selectedColor = selectedColor,
                         onColorSelected = { selectedColor = it }
                     )
+                    DeadlineToggleSection(
+                        hasDeadline = hasDeadline,
+                        deadlineDate = deadlineDate,
+                        onHasDeadlineChange = { hasDeadline = it },
+                        onDeadlineDateChange = { deadlineDate = it }
+                    )
                     TextButton(
                         onClick = { showDeleteConfirm = true },
                         colors = ButtonDefaults.textButtonColors(
@@ -150,7 +183,16 @@ internal fun EditGroupDialog(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { onConfirm(group.copy(name = name, colorHex = selectedColor)) },
+                    onClick = {
+                        onConfirm(
+                            group.copy(
+                                name = name,
+                                colorHex = selectedColor,
+                                hasDeadline = hasDeadline,
+                                deadlineDate = if (hasDeadline) deadlineDate else null
+                            )
+                        )
+                    },
                     enabled = name.isNotBlank()
                 ) {
                     Text(stringResource(R.string.save))
@@ -162,6 +204,95 @@ internal fun EditGroupDialog(
                 }
             }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeadlineToggleSection(
+    hasDeadline: Boolean,
+    deadlineDate: LocalDate?,
+    onHasDeadlineChange: (Boolean) -> Unit,
+    onDeadlineDateChange: (LocalDate?) -> Unit
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("yyyy/MM/dd") }
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.group_deadline_toggle),
+                style = MaterialTheme.typography.labelMedium
+            )
+            Switch(
+                checked = hasDeadline,
+                onCheckedChange = { checked ->
+                    onHasDeadlineChange(checked)
+                    if (!checked) {
+                        onDeadlineDateChange(null)
+                    }
+                },
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = AccentTeal
+                )
+            )
+        }
+
+        if (hasDeadline) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { showDatePicker = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    Icons.Default.DateRange,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text(
+                    text = deadlineDate?.format(dateFormatter)
+                        ?: stringResource(R.string.group_deadline_select_date)
+                )
+            }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = deadlineDate?.let {
+                it.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            }
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val date = Instant.ofEpochMilli(millis)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                            onDeadlineDateChange(date)
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text(stringResource(R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 }
 

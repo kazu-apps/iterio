@@ -121,7 +121,7 @@ class BgmManager @Inject constructor(
      */
     fun play(track: BgmTrack) {
         _selectedTrack.value = track
-        BgmService.play(context, track.resourceId, track.id, _volume.value)
+        BgmService.play(context, track.generatorType.name, track.id, _volume.value)
     }
 
     /**

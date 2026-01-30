@@ -122,6 +122,73 @@ interface TaskDao {
     suspend fun getRepeatTasks(): List<TaskEntity>
 
     /**
+     * 日付範囲のタスク数をリアクティブに観察（Flow版）
+     */
+    @Query("""
+        SELECT deadlineDate as date, COUNT(*) as count FROM tasks
+        WHERE isActive = 1 AND scheduleType = 'deadline'
+        AND deadlineDate BETWEEN :startDate AND :endDate
+        GROUP BY deadlineDate
+        UNION ALL
+        SELECT specificDate as date, COUNT(*) as count FROM tasks
+        WHERE isActive = 1 AND scheduleType = 'specific'
+        AND specificDate BETWEEN :startDate AND :endDate
+        GROUP BY specificDate
+    """)
+    fun observeTaskCountByDateRange(startDate: String, endDate: String): Flow<List<DateTaskCount>>
+
+    /**
+     * 繰り返しタスクをリアクティブに観察（Flow版）
+     */
+    @Query("SELECT * FROM tasks WHERE isActive = 1 AND scheduleType = 'repeat'")
+    fun observeRepeatTasks(): Flow<List<TaskEntity>>
+
+    /**
+     * 特定日のタスクをリアクティブに観察（Flow版）
+     */
+    @Query("""
+        SELECT * FROM tasks
+        WHERE isActive = 1 AND (
+            (scheduleType = 'repeat' AND (
+                repeatDays = :dayOfWeek
+                OR repeatDays LIKE :dayOfWeek || ',%'
+                OR repeatDays LIKE '%,' || :dayOfWeek || ',%'
+                OR repeatDays LIKE '%,' || :dayOfWeek
+            ))
+            OR (scheduleType = 'deadline' AND deadlineDate = :date)
+            OR (scheduleType = 'specific' AND specificDate = :date)
+        )
+        ORDER BY name ASC
+    """)
+    fun observeTasksForDate(date: String, dayOfWeek: String): Flow<List<TaskEntity>>
+
+    /**
+     * 日付範囲のタスクごとのグループ色をリアクティブに観察（カレンダードット色用）
+     */
+    @Query("""
+        SELECT t.deadlineDate as date, g.colorHex as colorHex FROM tasks t
+        LEFT JOIN subject_groups g ON t.groupId = g.id
+        WHERE t.isActive = 1 AND t.scheduleType = 'deadline'
+        AND t.deadlineDate BETWEEN :startDate AND :endDate
+        UNION ALL
+        SELECT t.specificDate as date, g.colorHex as colorHex FROM tasks t
+        LEFT JOIN subject_groups g ON t.groupId = g.id
+        WHERE t.isActive = 1 AND t.scheduleType = 'specific'
+        AND t.specificDate BETWEEN :startDate AND :endDate
+    """)
+    fun observeGroupColorsByDateRange(startDate: String, endDate: String): Flow<List<DateGroupColor>>
+
+    /**
+     * 繰り返しタスクのグループ色付きでリアクティブに観察
+     */
+    @Query("""
+        SELECT t.repeatDays, g.colorHex as colorHex FROM tasks t
+        LEFT JOIN subject_groups g ON t.groupId = g.id
+        WHERE t.isActive = 1 AND t.scheduleType = 'repeat'
+    """)
+    fun observeRepeatTaskGroupColors(): Flow<List<RepeatTaskGroupColor>>
+
+    /**
      * 今日のタスクをグループ名付きで取得（JOIN版・Widget用）
      */
     @Query("""
@@ -152,4 +219,14 @@ data class TaskWithGroupName(
     val id: Long,
     val name: String,
     val groupName: String
+)
+
+data class DateGroupColor(
+    val date: String?,
+    val colorHex: String?
+)
+
+data class RepeatTaskGroupColor(
+    val repeatDays: String?,
+    val colorHex: String?
 )

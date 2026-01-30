@@ -55,6 +55,7 @@ fun CalendarGrid(
     yearMonth: YearMonth,
     dailyStats: Map<LocalDate, DailyStats>,
     taskCountByDate: Map<LocalDate, Int>,
+    groupColorsByDate: Map<LocalDate, List<String>>,
     selectedDate: LocalDate?,
     onDateClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
@@ -93,6 +94,7 @@ fun CalendarGrid(
                             date = date,
                             heatmapColor = HeatmapColors[taskHeatmapLevel],
                             taskCount = taskCount,
+                            groupColors = groupColorsByDate[date].orEmpty(),
                             isSelected = date == selectedDate,
                             isToday = date == LocalDate.now(),
                             onClick = { onDateClick(date) },
@@ -119,6 +121,7 @@ fun CalendarGridSimple(
     yearMonth: YearMonth,
     dailyStats: Map<LocalDate, DailyStats>,
     taskCountByDate: Map<LocalDate, Int>,
+    groupColorsByDate: Map<LocalDate, List<String>>,
     selectedDate: LocalDate?,
     onDateClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
@@ -154,6 +157,7 @@ fun CalendarGridSimple(
                             date = date,
                             hasStudied = hasStudied,
                             taskCount = taskCount,
+                            groupColors = groupColorsByDate[date].orEmpty(),
                             isSelected = date == selectedDate,
                             isToday = date == LocalDate.now(),
                             onClick = { onDateClick(date) },

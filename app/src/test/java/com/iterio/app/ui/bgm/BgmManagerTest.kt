@@ -50,7 +50,7 @@ class BgmManagerTest {
 
         // Mock BgmService companion object static methods
         mockkObject(BgmService.Companion)
-        every { BgmService.play(any(), any(), any(), any()) } returns Unit
+        every { BgmService.play(any(), any<String>(), any(), any()) } returns Unit
         every { BgmService.pause(any()) } returns Unit
         every { BgmService.resume(any()) } returns Unit
         every { BgmService.stop(any()) } returns Unit

@@ -30,6 +30,16 @@ interface ReviewTaskRepository {
     suspend fun getTaskCountByDateRange(startDate: LocalDate, endDate: LocalDate): Result<Map<LocalDate, Int>, DomainError>
 
     /**
+     * 日付範囲の復習タスク数をリアクティブに観察
+     */
+    fun observeTaskCountByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, Int>>
+
+    /**
+     * 日付範囲の復習タスクごとのグループ色をリアクティブに観察（カレンダードット色用）
+     */
+    fun observeGroupColorsByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, List<String>>>
+
+    /**
      * 全ての復習タスクを詳細情報付きで取得
      */
     fun getAllWithDetails(): Flow<List<ReviewTask>>
@@ -43,6 +53,11 @@ interface ReviewTaskRepository {
      * 未完了の復習タスク数を取得
      */
     suspend fun getIncompleteCount(): Result<Int, DomainError>
+
+    /**
+     * 指定IDの復習タスクを削除
+     */
+    suspend fun deleteByIds(ids: List<Long>): Result<Unit, DomainError>
 
     /**
      * 全ての復習タスクを削除

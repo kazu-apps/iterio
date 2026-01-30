@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import java.time.LocalDate
 
 /**
  * SubjectGroupRepositoryのテスト用Fake実装
@@ -33,6 +34,17 @@ class FakeSubjectGroupRepository : SubjectGroupRepository {
     override fun getAllGroups(): Flow<List<SubjectGroup>> {
         return groups.map { list ->
             list.sortedBy { it.displayOrder }
+        }
+    }
+
+    override fun getUpcomingDeadlineGroups(startDate: LocalDate, endDate: LocalDate): Flow<List<SubjectGroup>> {
+        return groups.map { list ->
+            list.filter { group ->
+                group.hasDeadline &&
+                group.deadlineDate != null &&
+                group.deadlineDate > startDate &&
+                group.deadlineDate <= endDate
+            }.sortedBy { it.deadlineDate }
         }
     }
 

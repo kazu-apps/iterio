@@ -138,7 +138,7 @@ class TasksViewModel @Inject constructor(
             is TasksEvent.UpdateEditingRepeatDays -> updateEditingRepeatDays(event.days)
             is TasksEvent.UpdateEditingDeadlineDate -> updateEditingDeadlineDate(event.date)
             is TasksEvent.UpdateEditingSpecificDate -> updateEditingSpecificDate(event.date)
-            is TasksEvent.AddGroup -> addGroup(event.name, event.colorHex)
+            is TasksEvent.AddGroup -> addGroup(event.name, event.colorHex, event.hasDeadline, event.deadlineDate)
             is TasksEvent.UpdateGroup -> updateGroup(event.group)
             is TasksEvent.DeleteGroup -> deleteGroup(event.group)
             is TasksEvent.UpdateAddingReviewCount -> updateAddingReviewCount(event.reviewCount)
@@ -283,9 +283,14 @@ class TasksViewModel @Inject constructor(
         _uiState.update { it.copy(editingSpecificDate = date) }
     }
 
-    fun addGroup(name: String, colorHex: String) {
+    fun addGroup(name: String, colorHex: String, hasDeadline: Boolean = false, deadlineDate: LocalDate? = null) {
         viewModelScope.launch {
-            val group = SubjectGroup(name = name, colorHex = colorHex)
+            val group = SubjectGroup(
+                name = name,
+                colorHex = colorHex,
+                hasDeadline = hasDeadline,
+                deadlineDate = if (hasDeadline) deadlineDate else null
+            )
             subjectGroupRepository.insertGroup(group)
                 .onSuccess { id ->
                     hideAddGroupDialog()

@@ -20,6 +20,11 @@ data class DateReviewTaskCount(
     val count: Int
 )
 
+data class ReviewDateGroupColor(
+    val date: LocalDate,
+    val colorHex: String?
+)
+
 @Dao
 interface ReviewTaskDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -104,6 +109,29 @@ interface ReviewTaskDao {
     """)
     suspend fun getTaskCountByDateRange(startDate: LocalDate, endDate: LocalDate): List<DateReviewTaskCount>
 
+    /**
+     * 日付範囲の復習タスク数をリアクティブに観察（Flow版）
+     */
+    @Query("""
+        SELECT scheduledDate as date, COUNT(*) as count
+        FROM review_tasks
+        WHERE scheduledDate BETWEEN :startDate AND :endDate
+        GROUP BY scheduledDate
+    """)
+    fun observeTaskCountByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<List<DateReviewTaskCount>>
+
+    /**
+     * 日付範囲の復習タスクごとのグループ色をリアクティブに観察（カレンダードット色用）
+     */
+    @Query("""
+        SELECT r.scheduledDate as date, g.colorHex as colorHex
+        FROM review_tasks r
+        LEFT JOIN tasks t ON r.taskId = t.id
+        LEFT JOIN subject_groups g ON t.groupId = g.id
+        WHERE r.scheduledDate BETWEEN :startDate AND :endDate
+    """)
+    fun observeGroupColorsByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<List<ReviewDateGroupColor>>
+
     @Query("DELETE FROM review_tasks WHERE studySessionId = :studySessionId")
     suspend fun deleteTasksForSession(studySessionId: Long)
 
@@ -147,6 +175,12 @@ interface ReviewTaskDao {
      */
     @Query("SELECT COUNT(*) FROM review_tasks WHERE isCompleted = 0")
     suspend fun getIncompleteCount(): Int
+
+    /**
+     * Delete review tasks by IDs
+     */
+    @Query("DELETE FROM review_tasks WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
 
     /**
      * Delete all review tasks

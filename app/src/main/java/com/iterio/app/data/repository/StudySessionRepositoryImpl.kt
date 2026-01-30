@@ -59,6 +59,18 @@ class StudySessionRepositoryImpl @Inject constructor(
             studySessionDao.getTotalCyclesForDay(startOfDay, endOfDay)
         }
 
+    override fun observeTotalMinutesForDay(date: LocalDate): Flow<Int> {
+        val startOfDay = date.atStartOfDay()
+        val endOfDay = date.atTime(LocalTime.MAX)
+        return studySessionDao.observeTotalMinutesForDay(startOfDay, endOfDay)
+    }
+
+    override fun observeTotalCyclesForDay(date: LocalDate): Flow<Int> {
+        val startOfDay = date.atStartOfDay()
+        val endOfDay = date.atTime(LocalTime.MAX)
+        return studySessionDao.observeTotalCyclesForDay(startOfDay, endOfDay)
+    }
+
     override suspend fun insertSession(session: StudySession): Result<Long, DomainError> =
         Result.catchingSuspend {
             studySessionDao.insertSession(mapper.toEntity(session))

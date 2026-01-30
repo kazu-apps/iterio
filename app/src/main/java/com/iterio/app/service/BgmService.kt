@@ -4,26 +4,36 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
-import android.media.MediaPlayer
+import android.media.AudioFormat
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.os.Binder
 import android.os.IBinder
-import androidx.annotation.RawRes
+import com.iterio.app.domain.model.AudioGeneratorType
+import com.iterio.app.service.audio.AudioGenerator
+import com.iterio.app.service.audio.AudioGeneratorFactory
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
-import timber.log.Timber
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import javax.inject.Inject
+import timber.log.Timber
 
 /**
  * BGM再生を管理するサービス
- * タイマーと連携してバックグラウンドでBGMを再生
+ * AudioTrack + プロシージャル音声生成でバックグラウンドBGMを再生
  */
 @AndroidEntryPoint
 class BgmService : Service() {
 
     private val binder = BgmBinder()
-    private var mediaPlayer: MediaPlayer? = null
+    private var audioTrack: AudioTrack? = null
+    private var generatorThread: Thread? = null
+    private var generator: AudioGenerator? = null
+    @Volatile private var isGenerating = false
+
+    private val audioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
+    private var audioFocusRequest: AudioFocusRequest? = null
 
     private val _bgmState = MutableStateFlow(BgmState())
     val bgmState: StateFlow<BgmState> = _bgmState.asStateFlow()
@@ -46,11 +56,15 @@ class BgmService : Service() {
     private fun handleIntent(intent: Intent) {
         when (intent.action) {
             ACTION_PLAY -> {
-                val resourceId = intent.getIntExtra(EXTRA_RESOURCE_ID, 0)
+                val generatorTypeName = intent.getStringExtra(EXTRA_GENERATOR_TYPE) ?: return
                 val trackId = intent.getStringExtra(EXTRA_TRACK_ID) ?: ""
                 val volume = intent.getFloatExtra(EXTRA_VOLUME, 0.5f)
-                if (resourceId != 0) {
-                    playBgm(resourceId, trackId, volume)
+                try {
+                    val generatorType = AudioGeneratorType.valueOf(generatorTypeName)
+                    playBgm(generatorType, trackId, volume)
+                } catch (e: IllegalArgumentException) {
+                    Timber.e(e, "Unknown generator type: $generatorTypeName")
+                    _bgmState.value = BgmState(error = "不明なBGMタイプです")
                 }
             }
             ACTION_PAUSE -> pauseBgm()
@@ -63,31 +77,61 @@ class BgmService : Service() {
         }
     }
 
-    private fun playBgm(@RawRes resourceId: Int, trackId: String, volume: Float) {
-        // 既存のMediaPlayerを解放
-        releaseMediaPlayer()
+    private fun playBgm(generatorType: AudioGeneratorType, trackId: String, volume: Float) {
+        stopBgm()
 
         try {
-            val player = MediaPlayer.create(this, resourceId)
+            val sampleRate = 44100
+            val bufferSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
 
-            // MediaPlayer.create()がnullを返す場合（無効なリソースID、メモリ不足等）
-            if (player == null) {
-                Timber.e("MediaPlayer.create() returned null for resourceId: $resourceId")
-                _bgmState.value = BgmState(error = "BGMの読み込みに失敗しました")
+            if (bufferSize <= 0) {
+                Timber.e("Invalid buffer size: $bufferSize")
+                _bgmState.value = BgmState(error = "オーディオの初期化に失敗しました")
                 return
             }
 
-            mediaPlayer = player.apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
+            val audioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .build()
+
+            audioTrack = AudioTrack.Builder()
+                .setAudioAttributes(audioAttributes)
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                         .build()
                 )
-                isLooping = true
-                setVolume(volume, volume)
-                start()
+                .setBufferSizeInBytes(bufferSize * 2)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
+
+            generator = AudioGeneratorFactory.create(generatorType, sampleRate).apply {
+                setVolume(volume)
             }
+
+            requestAudioFocus()
+            audioTrack?.play()
+            isGenerating = true
+
+            generatorThread = Thread({
+                val buffer = ShortArray(bufferSize / 2)
+                while (isGenerating) {
+                    generator?.generate(buffer)
+                    try {
+                        audioTrack?.write(buffer, 0, buffer.size)
+                    } catch (e: IllegalStateException) {
+                        Timber.e(e, "AudioTrack write failed")
+                        break
+                    }
+                }
+            }, "BgmGeneratorThread").apply { start() }
 
             _bgmState.value = BgmState(
                 isPlaying = true,
@@ -95,57 +139,115 @@ class BgmService : Service() {
                 volume = volume
             )
         } catch (e: Exception) {
-            Timber.e(e, "Error playing BGM")
+            Timber.e(e, "Error starting BGM")
             _bgmState.value = BgmState(error = e.message)
         }
     }
 
     private fun pauseBgm() {
-        mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.pause()
-                _bgmState.value = _bgmState.value.copy(isPlaying = false)
+        if (_bgmState.value.isPlaying) {
+            isGenerating = false
+            generatorThread?.join(1000)
+            generatorThread = null
+            try {
+                audioTrack?.pause()
+            } catch (e: IllegalStateException) {
+                Timber.e(e, "Error pausing AudioTrack")
             }
+            _bgmState.value = _bgmState.value.copy(isPlaying = false)
         }
     }
 
     private fun resumeBgm() {
-        mediaPlayer?.let {
-            if (!it.isPlaying) {
-                it.start()
+        if (!_bgmState.value.isPlaying && audioTrack != null && generator != null) {
+            try {
+                audioTrack?.play()
+                isGenerating = true
+
+                val bufferSize = AudioTrack.getMinBufferSize(
+                    44100,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT
+                )
+                generatorThread = Thread({
+                    val buffer = ShortArray(bufferSize / 2)
+                    while (isGenerating) {
+                        generator?.generate(buffer)
+                        try {
+                            audioTrack?.write(buffer, 0, buffer.size)
+                        } catch (e: IllegalStateException) {
+                            Timber.e(e, "AudioTrack write failed on resume")
+                            break
+                        }
+                    }
+                }, "BgmGeneratorThread").apply { start() }
+
                 _bgmState.value = _bgmState.value.copy(isPlaying = true)
+            } catch (e: Exception) {
+                Timber.e(e, "Error resuming BGM")
             }
         }
     }
 
     private fun stopBgm() {
-        releaseMediaPlayer()
+        isGenerating = false
+        generatorThread?.join(1000)
+        generatorThread = null
+
+        try {
+            audioTrack?.let { track ->
+                if (track.state == AudioTrack.STATE_INITIALIZED) {
+                    track.stop()
+                }
+                track.release()
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error stopping AudioTrack")
+        } finally {
+            audioTrack = null
+            generator = null
+        }
+
+        abandonAudioFocus()
         _bgmState.value = BgmState()
     }
 
     private fun setVolume(volume: Float) {
         val clampedVolume = volume.coerceIn(0f, 1f)
-        mediaPlayer?.setVolume(clampedVolume, clampedVolume)
+        generator?.setVolume(clampedVolume)
         _bgmState.value = _bgmState.value.copy(volume = clampedVolume)
     }
 
-    private fun releaseMediaPlayer() {
-        try {
-            mediaPlayer?.apply {
-                if (isPlaying) {
-                    stop()
+    private fun requestAudioFocus() {
+        val audioAttributes = AudioAttributes.Builder()
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .build()
+
+        val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(audioAttributes)
+            .setOnAudioFocusChangeListener { focusChange ->
+                when (focusChange) {
+                    AudioManager.AUDIOFOCUS_LOSS -> stopBgm()
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pauseBgm()
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK ->
+                        generator?.setVolume(_bgmState.value.volume * 0.3f)
+                    AudioManager.AUDIOFOCUS_GAIN ->
+                        generator?.setVolume(_bgmState.value.volume)
                 }
-                release()
             }
-        } catch (e: Exception) {
-            Timber.e(e, "Error releasing MediaPlayer")
-        } finally {
-            mediaPlayer = null
-        }
+            .build()
+        audioFocusRequest = focusRequest
+        audioManager.requestAudioFocus(focusRequest)
+    }
+
+    private fun abandonAudioFocus() {
+        audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        audioFocusRequest = null
     }
 
     override fun onDestroy() {
-        releaseMediaPlayer()
+        stopBgm()
         super.onDestroy()
     }
 
@@ -156,14 +258,14 @@ class BgmService : Service() {
         const val ACTION_STOP = "com.iterio.app.action.BGM_STOP"
         const val ACTION_SET_VOLUME = "com.iterio.app.action.BGM_SET_VOLUME"
 
-        const val EXTRA_RESOURCE_ID = "resource_id"
+        const val EXTRA_GENERATOR_TYPE = "generator_type"
         const val EXTRA_TRACK_ID = "track_id"
         const val EXTRA_VOLUME = "volume"
 
-        fun play(context: Context, @RawRes resourceId: Int, trackId: String, volume: Float = 0.5f) {
+        fun play(context: Context, generatorType: String, trackId: String, volume: Float = 0.5f) {
             val intent = Intent(context, BgmService::class.java).apply {
                 action = ACTION_PLAY
-                putExtra(EXTRA_RESOURCE_ID, resourceId)
+                putExtra(EXTRA_GENERATOR_TYPE, generatorType)
                 putExtra(EXTRA_TRACK_ID, trackId)
                 putExtra(EXTRA_VOLUME, volume)
             }

@@ -26,7 +26,9 @@ data class SubjectGroupBackup(
     val name: String,
     val colorHex: String,
     val displayOrder: Int,
-    val createdAt: String // ISO-8601形式
+    val createdAt: String, // ISO-8601形式
+    val hasDeadline: Boolean = false,
+    val deadlineDate: String? = null // ISO-8601 LocalDate形式
 )
 
 /**

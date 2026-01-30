@@ -1,9 +1,13 @@
 package com.iterio.app.ui.screens.timer
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -44,6 +49,7 @@ fun TimerScreen(
     taskId: Long,
     onNavigateBack: () -> Unit,
     onNavigateToPremium: () -> Unit,
+    onNavigateToNextTask: ((Long) -> Unit)? = null,
     viewModel: TimerViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -106,71 +112,135 @@ fun TimerScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceEvenly
-        ) {
-            // Phase indicator
-            PhaseIndicator(
-                phase = uiState.phase,
-                currentCycle = uiState.currentCycle,
-                totalCycles = uiState.totalCycles
-            )
+        val configuration = LocalConfiguration.current
+        val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-            // Circular timer
-            CircularTimer(
-                timeRemainingSeconds = uiState.timeRemainingSeconds,
-                totalTimeSeconds = uiState.totalTimeSeconds,
-                phase = uiState.phase
-            )
+        val onStartTimer: () -> Unit = {
+            if (uiState.settings.focusModeEnabled) {
+                showFocusModeWarning = true
+            } else {
+                viewModel.startTimer(lockModeEnabled = false)
+            }
+        }
 
-            // Control buttons
-            TimerControls(
-                phase = uiState.phase,
-                isRunning = uiState.isRunning,
-                isPaused = uiState.isPaused,
-                focusModeEnabled = uiState.settings.focusModeEnabled,
-                isLockModeActive = isLockModeActive,
-                onStart = {
-                    if (uiState.settings.focusModeEnabled) {
-                        showFocusModeWarning = true
-                    } else {
-                        viewModel.startTimer(lockModeEnabled = false)
+        val onBgmClick: () -> Unit = {
+            if (isPremium) {
+                showBgmSelector = true
+            } else {
+                showBgmPremiumUpsell = true
+            }
+        }
+
+        if (isLandscape) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularTimer(
+                    timeRemainingSeconds = uiState.timeRemainingSeconds,
+                    totalTimeSeconds = uiState.totalTimeSeconds,
+                    phase = uiState.phase,
+                    timerSize = 200.dp
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    PhaseIndicator(
+                        phase = uiState.phase,
+                        currentCycle = uiState.currentCycle,
+                        totalCycles = uiState.totalCycles
+                    )
+
+                    TimerControls(
+                        phase = uiState.phase,
+                        isRunning = uiState.isRunning,
+                        isPaused = uiState.isPaused,
+                        focusModeEnabled = uiState.settings.focusModeEnabled,
+                        isLockModeActive = isLockModeActive,
+                        onStart = onStartTimer,
+                        onPause = { viewModel.pauseTimer() },
+                        onResume = { viewModel.resumeTimer() },
+                        onSkip = { viewModel.skipPhase() },
+                        onStop = { viewModel.showCancelDialog() }
+                    )
+
+                    if (uiState.totalWorkMinutes > 0) {
+                        Text(
+                            text = "今回の学習: ${uiState.totalWorkMinutes}分",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                },
-                onPause = { viewModel.pauseTimer() },
-                onResume = { viewModel.resumeTimer() },
-                onSkip = { viewModel.skipPhase() },
-                onStop = { viewModel.showCancelDialog() }
-            )
 
-            // Study time display
-            if (uiState.totalWorkMinutes > 0) {
-                Text(
-                    text = "今回の学習: ${uiState.totalWorkMinutes}分",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    BgmButton(
+                        selectedTrack = selectedBgmTrack,
+                        isPlaying = bgmState.isPlaying,
+                        isPremium = isPremium,
+                        onClick = onBgmClick,
+                        onTogglePlay = { viewModel.toggleBgm() }
+                    )
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceEvenly
+            ) {
+                PhaseIndicator(
+                    phase = uiState.phase,
+                    currentCycle = uiState.currentCycle,
+                    totalCycles = uiState.totalCycles
+                )
+
+                CircularTimer(
+                    timeRemainingSeconds = uiState.timeRemainingSeconds,
+                    totalTimeSeconds = uiState.totalTimeSeconds,
+                    phase = uiState.phase
+                )
+
+                TimerControls(
+                    phase = uiState.phase,
+                    isRunning = uiState.isRunning,
+                    isPaused = uiState.isPaused,
+                    focusModeEnabled = uiState.settings.focusModeEnabled,
+                    isLockModeActive = isLockModeActive,
+                    onStart = onStartTimer,
+                    onPause = { viewModel.pauseTimer() },
+                    onResume = { viewModel.resumeTimer() },
+                    onSkip = { viewModel.skipPhase() },
+                    onStop = { viewModel.showCancelDialog() }
+                )
+
+                if (uiState.totalWorkMinutes > 0) {
+                    Text(
+                        text = "今回の学習: ${uiState.totalWorkMinutes}分",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                BgmButton(
+                    selectedTrack = selectedBgmTrack,
+                    isPlaying = bgmState.isPlaying,
+                    isPremium = isPremium,
+                    onClick = onBgmClick,
+                    onTogglePlay = { viewModel.toggleBgm() }
                 )
             }
-
-            // BGM button
-            BgmButton(
-                selectedTrack = selectedBgmTrack,
-                isPlaying = bgmState.isPlaying,
-                isPremium = isPremium,
-                onClick = {
-                    if (isPremium) {
-                        showBgmSelector = true
-                    } else {
-                        showBgmPremiumUpsell = true
-                    }
-                },
-                onTogglePlay = { viewModel.toggleBgm() }
-            )
         }
     }
 
@@ -190,9 +260,17 @@ fun TimerScreen(
         FinishDialog(
             totalCycles = uiState.totalCycles,
             totalWorkMinutes = uiState.totalWorkMinutes,
+            nextTaskName = uiState.nextTaskName,
+            allTasksCompleted = uiState.allTasksCompleted,
             onDismiss = {
                 viewModel.hideFinishDialog()
                 onNavigateBack()
+            },
+            onNavigateToNextTask = uiState.nextTaskId?.let { nextId ->
+                {
+                    viewModel.hideFinishDialog()
+                    onNavigateToNextTask?.invoke(nextId)
+                }
             }
         )
     }

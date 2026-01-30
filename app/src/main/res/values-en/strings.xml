@@ -20,6 +20,14 @@
     <string name="home_no_tasks">No review tasks for today</string>
     <string name="home_no_records">No study records yet</string>
 
+    <!-- Home Active Timer -->
+    <string name="home_timer_phase_work">Working</string>
+    <string name="home_timer_phase_short_break">Short Break</string>
+    <string name="home_timer_phase_long_break">Long Break</string>
+    <string name="home_timer_paused">Paused</string>
+    <string name="home_timer_cycle_format">Cycle %1$d/%2$d</string>
+    <string name="home_timer_tap_to_open">Open timer screen</string>
+
     <!-- Record Input -->
     <string name="record_add">Add Study Record</string>
     <string name="record_edit">Edit Record</string>
@@ -166,6 +174,7 @@
     <string name="timer_finish_title">Great job!</string>
     <string name="timer_cancel_title">End Timer?</string>
     <string name="timer_cancel_message">Current progress will be recorded.</string>
+    <string name="timer_all_tasks_completed">All tasks completed!</string>
 
     <!-- Tasks -->
     <string name="tasks_title">Task Management</string>
@@ -262,6 +271,12 @@
     <string name="settings_review_task_completed">Completed</string>
     <string name="settings_review_task_pending">Pending</string>
     <string name="settings_review_task_review_number">Review #%d</string>
+    <string name="settings_review_task_select_all">Select All</string>
+    <string name="settings_review_task_deselect_all">Deselect All</string>
+    <string name="settings_review_task_selected_count">%d selected</string>
+    <string name="settings_review_task_delete_selected">Delete Selected</string>
+    <string name="settings_review_task_delete_selected_confirm">Delete selected review tasks?</string>
+    <string name="settings_review_task_delete_selected_message">This action cannot be undone. %d review tasks will be deleted.</string>
     <string name="close">Close</string>
 
     <!-- Task Review Enabled -->
@@ -285,6 +300,30 @@
     <string name="review_schedule_date_format">%3$s, %1$s/%2$s</string>
     <string name="review_schedule_task_group">%s</string>
     <string name="review_schedule_no_group">No group</string>
+
+    <!-- Group Deadline -->
+    <string name="group_deadline_toggle">Set deadline</string>
+    <string name="group_deadline_select_date">Select date</string>
+
+    <!-- Deadline Section -->
+    <string name="deadline_section_title">Upcoming Deadlines</string>
+    <string name="deadline_view_all">View All (%d)</string>
+    <string name="deadline_empty">No upcoming deadlines</string>
+    <string name="deadline_date_format">Due: %1$s (%2$d days left)</string>
+    <string name="deadline_start_timer">Start timer</string>
+    <string name="deadline_group_label">Group</string>
+    <string name="deadline_task_subtitle">Task Deadlines</string>
+    <string name="deadline_group_subtitle">Group Deadlines</string>
+
+    <!-- Deadline List Screen -->
+    <string name="deadline_list_title">Deadlines</string>
+    <string name="deadline_list_filter_all">All</string>
+    <string name="deadline_list_filter_tasks">Tasks</string>
+    <string name="deadline_list_filter_groups">Groups</string>
+    <string name="deadline_list_total">Total: %d</string>
+    <string name="deadline_list_task_count">Tasks: %d</string>
+    <string name="deadline_list_group_count">Groups: %d</string>
+    <string name="deadline_list_empty">No items with deadlines</string>
 
     <!-- BGM Settings -->
     <string name="settings_bgm">BGM</string>

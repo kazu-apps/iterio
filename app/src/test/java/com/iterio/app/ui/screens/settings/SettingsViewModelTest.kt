@@ -4,6 +4,7 @@ import com.iterio.app.domain.common.DomainError
 import com.iterio.app.domain.common.Result
 import com.iterio.app.domain.model.BgmTrack
 import com.iterio.app.domain.model.PomodoroSettings
+import com.iterio.app.domain.model.ReviewTask
 import com.iterio.app.domain.model.SubscriptionStatus
 import com.iterio.app.domain.model.SubscriptionType
 import com.iterio.app.domain.repository.ReviewTaskRepository
@@ -32,6 +33,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 
 /**
  * SettingsViewModel core logic tests.
@@ -636,5 +638,162 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { premiumManager.startTrial() }
+    }
+
+    // ========== Review Task Selection ==========
+
+    private fun createReviewTask(id: Long, taskName: String = "Task $id"): ReviewTask {
+        return ReviewTask(
+            id = id,
+            studySessionId = 1L,
+            taskId = 1L,
+            scheduledDate = LocalDate.of(2026, 1, 30),
+            reviewNumber = 1,
+            taskName = taskName
+        )
+    }
+
+    @Test
+    fun `toggleReviewTaskSelection adds task id to selection`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.toggleReviewTaskSelection(1L)
+
+        assertTrue(1L in viewModel.uiState.value.selectedReviewTaskIds)
+    }
+
+    @Test
+    fun `toggleReviewTaskSelection removes task id when already selected`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.toggleReviewTaskSelection(1L)
+        assertTrue(1L in viewModel.uiState.value.selectedReviewTaskIds)
+
+        viewModel.toggleReviewTaskSelection(1L)
+        assertFalse(1L in viewModel.uiState.value.selectedReviewTaskIds)
+    }
+
+    @Test
+    fun `selectAllReviewTasks selects all tasks in current list`() = runTest {
+        val tasks = listOf(createReviewTask(1L), createReviewTask(2L), createReviewTask(3L))
+        every { reviewTaskRepository.getAllWithDetails() } returns flowOf(tasks)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.showReviewTasksDialog()
+        advanceUntilIdle()
+
+        viewModel.selectAllReviewTasks()
+
+        val selected = viewModel.uiState.value.selectedReviewTaskIds
+        assertEquals(setOf(1L, 2L, 3L), selected)
+    }
+
+    @Test
+    fun `clearReviewTaskSelection clears all selections`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.toggleReviewTaskSelection(1L)
+        viewModel.toggleReviewTaskSelection(2L)
+        assertEquals(2, viewModel.uiState.value.selectedReviewTaskIds.size)
+
+        viewModel.clearReviewTaskSelection()
+
+        assertTrue(viewModel.uiState.value.selectedReviewTaskIds.isEmpty())
+    }
+
+    @Test
+    fun `hideReviewTasksDialog clears selection`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.showReviewTasksDialog()
+        advanceUntilIdle()
+
+        viewModel.toggleReviewTaskSelection(1L)
+        assertTrue(viewModel.uiState.value.selectedReviewTaskIds.isNotEmpty())
+
+        viewModel.hideReviewTasksDialog()
+
+        assertTrue(viewModel.uiState.value.selectedReviewTaskIds.isEmpty())
+        assertFalse(viewModel.uiState.value.showReviewTasksDialog)
+    }
+
+    @Test
+    fun `showDeleteSelectedReviewTasksDialog sets flag to true`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.showDeleteSelectedReviewTasksDialog()
+
+        assertTrue(viewModel.uiState.value.showDeleteSelectedReviewTasksDialog)
+    }
+
+    @Test
+    fun `hideDeleteSelectedReviewTasksDialog sets flag to false`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.showDeleteSelectedReviewTasksDialog()
+        assertTrue(viewModel.uiState.value.showDeleteSelectedReviewTasksDialog)
+
+        viewModel.hideDeleteSelectedReviewTasksDialog()
+
+        assertFalse(viewModel.uiState.value.showDeleteSelectedReviewTasksDialog)
+    }
+
+    @Test
+    fun `deleteSelectedReviewTasks calls repository and clears selection`() = runTest {
+        coEvery { reviewTaskRepository.deleteByIds(any()) } returns Result.Success(Unit)
+        coEvery { reviewTaskRepository.getTotalCount() } returns Result.Success(5)
+        coEvery { reviewTaskRepository.getIncompleteCount() } returns Result.Success(3)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.toggleReviewTaskSelection(1L)
+        viewModel.toggleReviewTaskSelection(2L)
+        viewModel.showDeleteSelectedReviewTasksDialog()
+
+        viewModel.deleteSelectedReviewTasks()
+        advanceUntilIdle()
+
+        coVerify { reviewTaskRepository.deleteByIds(match { it.toSet() == setOf(1L, 2L) }) }
+        assertTrue(viewModel.uiState.value.selectedReviewTaskIds.isEmpty())
+        assertFalse(viewModel.uiState.value.showDeleteSelectedReviewTasksDialog)
+    }
+
+    @Test
+    fun `deleteSelectedReviewTasks does nothing when selection is empty`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.deleteSelectedReviewTasks()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { reviewTaskRepository.deleteByIds(any()) }
+    }
+
+    @Test
+    fun `deleteSelectedReviewTasks reloads counts after success`() = runTest {
+        coEvery { reviewTaskRepository.deleteByIds(any()) } returns Result.Success(Unit)
+        coEvery { reviewTaskRepository.getTotalCount() } returns Result.Success(10) andThen Result.Success(8)
+        coEvery { reviewTaskRepository.getIncompleteCount() } returns Result.Success(5) andThen Result.Success(3)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(10, viewModel.uiState.value.reviewTaskTotalCount)
+
+        viewModel.toggleReviewTaskSelection(1L)
+        viewModel.deleteSelectedReviewTasks()
+        advanceUntilIdle()
+
+        assertEquals(8, viewModel.uiState.value.reviewTaskTotalCount)
+        assertEquals(3, viewModel.uiState.value.reviewTaskIncompleteCount)
     }
 }

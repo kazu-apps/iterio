@@ -91,7 +91,9 @@ fun TasksScreen(
     if (uiState.showAddGroupDialog) {
         AddGroupDialog(
             onDismiss = { viewModel.hideAddGroupDialog() },
-            onConfirm = { name, color -> viewModel.addGroup(name, color) }
+            onConfirm = { name, color, hasDeadline, deadlineDate ->
+                viewModel.addGroup(name, color, hasDeadline, deadlineDate)
+            }
         )
     }
 

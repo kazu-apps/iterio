@@ -1,7 +1,6 @@
 package com.iterio.app.ui.screens.calendar
 
 import app.cash.turbine.test
-import com.iterio.app.domain.common.Result
 import com.iterio.app.domain.model.DailyStats
 import com.iterio.app.domain.model.ReviewTask
 import com.iterio.app.domain.model.ScheduleType
@@ -13,6 +12,7 @@ import com.iterio.app.domain.repository.ReviewTaskRepository
 import com.iterio.app.domain.repository.TaskRepository
 import com.iterio.app.testutil.CoroutineTestRule
 import com.iterio.app.ui.premium.PremiumManager
+import com.iterio.app.domain.common.Result
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -55,8 +55,10 @@ class CalendarViewModelTest {
         // Default mocks
         every { premiumManager.subscriptionStatus } returns subscriptionStatusFlow
         every { dailyStatsRepository.getStatsBetweenDates(any(), any()) } returns flowOf(emptyList())
-        coEvery { taskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(emptyMap())
-        coEvery { reviewTaskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(emptyMap())
+        every { taskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(emptyMap())
+        every { reviewTaskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(emptyMap())
+        every { taskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(emptyMap())
+        every { reviewTaskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(emptyMap())
     }
 
     private fun createViewModel() = CalendarViewModel(
@@ -113,8 +115,8 @@ class CalendarViewModelTest {
         val today = LocalDate.now()
         val regularCounts = mapOf(today to 3, today.plusDays(1) to 2)
         val reviewCounts = mapOf(today to 1)
-        coEvery { taskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(regularCounts)
-        coEvery { reviewTaskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(reviewCounts)
+        every { taskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(regularCounts)
+        every { reviewTaskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(reviewCounts)
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -193,7 +195,7 @@ class CalendarViewModelTest {
         val reviewTasks = listOf(
             ReviewTask(id = 1L, studySessionId = 1L, taskId = 1L, scheduledDate = date, reviewNumber = 1)
         )
-        coEvery { taskRepository.getTasksForDate(date) } returns Result.Success(tasks)
+        every { taskRepository.observeTasksForDate(date) } returns flowOf(tasks)
         every { reviewTaskRepository.getAllTasksForDate(date) } returns flowOf(reviewTasks)
 
         val vm = createViewModel()
@@ -214,7 +216,7 @@ class CalendarViewModelTest {
     @Test
     fun `clearSelection resets selection`() = runTest {
         val date = LocalDate.now()
-        coEvery { taskRepository.getTasksForDate(date) } returns Result.Success(emptyList())
+        every { taskRepository.observeTasksForDate(date) } returns flowOf(emptyList())
         every { reviewTaskRepository.getAllTasksForDate(date) } returns flowOf(emptyList())
 
         val vm = createViewModel()
@@ -298,8 +300,8 @@ class CalendarViewModelTest {
         val today = LocalDate.now()
         val regularCounts = mapOf(today to 5)
         val reviewCounts = mapOf(today to 3)
-        coEvery { taskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(regularCounts)
-        coEvery { reviewTaskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(reviewCounts)
+        every { taskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(regularCounts)
+        every { reviewTaskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(reviewCounts)
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -315,9 +317,8 @@ class CalendarViewModelTest {
     fun `taskCountByDate handles only regular tasks on date`() = runTest {
         val today = LocalDate.now()
         val regularCounts = mapOf(today to 3)
-        val reviewCounts = emptyMap<LocalDate, Int>()
-        coEvery { taskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(regularCounts)
-        coEvery { reviewTaskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(reviewCounts)
+        every { taskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(regularCounts)
+        every { reviewTaskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(emptyMap())
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -332,10 +333,9 @@ class CalendarViewModelTest {
     @Test
     fun `taskCountByDate handles only review tasks on date`() = runTest {
         val today = LocalDate.now()
-        val regularCounts = emptyMap<LocalDate, Int>()
         val reviewCounts = mapOf(today to 2)
-        coEvery { taskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(regularCounts)
-        coEvery { reviewTaskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(reviewCounts)
+        every { taskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(emptyMap())
+        every { reviewTaskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(reviewCounts)
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -348,28 +348,9 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun `taskCountByDate defaults to empty on regular task failure`() = runTest {
-        coEvery { taskRepository.getTaskCountByDateRange(any(), any()) } returns
-            Result.Failure(com.iterio.app.domain.common.DomainError.DatabaseError("DB error"))
-        coEvery { reviewTaskRepository.getTaskCountByDateRange(any(), any()) } returns
-            Result.Success(emptyMap())
-
-        val vm = createViewModel()
-        advanceUntilIdle()
-
-        vm.uiState.test {
-            val state = awaitItem()
-            assertTrue(state.taskCountByDate.isEmpty())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `taskCountByDate defaults to empty on review task failure`() = runTest {
-        coEvery { taskRepository.getTaskCountByDateRange(any(), any()) } returns
-            Result.Success(emptyMap())
-        coEvery { reviewTaskRepository.getTaskCountByDateRange(any(), any()) } returns
-            Result.Failure(com.iterio.app.domain.common.DomainError.DatabaseError("DB error"))
+    fun `taskCountByDate defaults to empty when no data`() = runTest {
+        every { taskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(emptyMap())
+        every { reviewTaskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(emptyMap())
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -388,8 +369,8 @@ class CalendarViewModelTest {
         val date3 = LocalDate.now().plusDays(2)
         val regularCounts = mapOf(date1 to 2, date2 to 1)
         val reviewCounts = mapOf(date1 to 1, date3 to 3)
-        coEvery { taskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(regularCounts)
-        coEvery { reviewTaskRepository.getTaskCountByDateRange(any(), any()) } returns Result.Success(reviewCounts)
+        every { taskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(regularCounts)
+        every { reviewTaskRepository.observeTaskCountByDateRange(any(), any()) } returns flowOf(reviewCounts)
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -399,6 +380,161 @@ class CalendarViewModelTest {
             assertEquals(3, state.taskCountByDate[date1]) // 2 + 1
             assertEquals(1, state.taskCountByDate[date2]) // 1 + 0
             assertEquals(3, state.taskCountByDate[date3]) // 0 + 3
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ========== グループ色テスト ===========
+
+    @Test
+    fun `groupColorsByDate combines regular and review task colors`() = runTest {
+        val today = LocalDate.now()
+        val regularColors = mapOf(today to listOf("#FF0000", "#00FF00"))
+        val reviewColors = mapOf(today to listOf("#0000FF"))
+        every { taskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(regularColors)
+        every { reviewTaskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(reviewColors)
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            val colors = state.groupColorsByDate[today]
+            assertNotNull(colors)
+            assertEquals(3, colors!!.size)
+            assertEquals("#FF0000", colors[0])
+            assertEquals("#00FF00", colors[1])
+            assertEquals("#0000FF", colors[2])
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `groupColorsByDate handles only regular task colors`() = runTest {
+        val today = LocalDate.now()
+        val regularColors = mapOf(today to listOf("#FF0000"))
+        every { taskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(regularColors)
+        every { reviewTaskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(emptyMap())
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            val colors = state.groupColorsByDate[today]
+            assertNotNull(colors)
+            assertEquals(1, colors!!.size)
+            assertEquals("#FF0000", colors[0])
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `groupColorsByDate handles only review task colors`() = runTest {
+        val today = LocalDate.now()
+        val reviewColors = mapOf(today to listOf("#0000FF"))
+        every { taskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(emptyMap())
+        every { reviewTaskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(reviewColors)
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            val colors = state.groupColorsByDate[today]
+            assertNotNull(colors)
+            assertEquals(1, colors!!.size)
+            assertEquals("#0000FF", colors[0])
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `groupColorsByDate defaults to empty when no data`() = runTest {
+        every { taskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(emptyMap())
+        every { reviewTaskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(emptyMap())
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.groupColorsByDate.isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `groupColorsByDate combines colors across multiple dates`() = runTest {
+        val date1 = LocalDate.now()
+        val date2 = LocalDate.now().plusDays(1)
+        val regularColors = mapOf(date1 to listOf("#FF0000"), date2 to listOf("#00FF00"))
+        val reviewColors = mapOf(date1 to listOf("#0000FF"))
+        every { taskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(regularColors)
+        every { reviewTaskRepository.observeGroupColorsByDateRange(any(), any()) } returns flowOf(reviewColors)
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals(2, state.groupColorsByDate[date1]?.size)
+            assertEquals(1, state.groupColorsByDate[date2]?.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ========== リアクティブ更新テスト ===========
+
+    @Test
+    fun `taskCountByDate updates reactively when flow emits new values`() = runTest {
+        val today = LocalDate.now()
+        val regularCountsFlow = MutableStateFlow(mapOf(today to 1))
+        val reviewCountsFlow = MutableStateFlow<Map<LocalDate, Int>>(emptyMap())
+        every { taskRepository.observeTaskCountByDateRange(any(), any()) } returns regularCountsFlow
+        every { reviewTaskRepository.observeTaskCountByDateRange(any(), any()) } returns reviewCountsFlow
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        // Initial value
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals(1, state.taskCountByDate[today])
+
+            // Simulate DB change: new task added
+            regularCountsFlow.value = mapOf(today to 2)
+            val updated = awaitItem()
+            assertEquals(2, updated.taskCountByDate[today])
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `selectedDateTasks updates reactively when flow emits new values`() = runTest {
+        val date = LocalDate.now()
+        val tasksFlow = MutableStateFlow<List<Task>>(emptyList())
+        every { taskRepository.observeTasksForDate(date) } returns tasksFlow
+        every { reviewTaskRepository.getAllTasksForDate(date) } returns flowOf(emptyList())
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.selectDate(date)
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.selectedDateTasks.isEmpty())
+
+            // Simulate DB change: new task added
+            val newTask = Task(id = 1L, groupId = 1L, name = "New Task", scheduleType = ScheduleType.SPECIFIC)
+            tasksFlow.value = listOf(newTask)
+            val updated = awaitItem()
+            assertEquals(1, updated.selectedDateTasks.size)
+            assertEquals("New Task", updated.selectedDateTasks[0].name)
+
             cancelAndIgnoreRemainingEvents()
         }
     }

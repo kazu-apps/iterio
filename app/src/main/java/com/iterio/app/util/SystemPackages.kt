@@ -42,4 +42,10 @@ object SystemPackages {
      * 常に許可されるべきすべてのパッケージ
      */
     val ALWAYS_ALLOWED = LAUNCHERS + SYSTEM_UI + EMERGENCY
+
+    /**
+     * 完全ロックモード（strict mode）で許可されるパッケージ
+     * ランチャーを除外して、ホーム画面への移動を防ぐ
+     */
+    val STRICT_MODE_ALLOWED = SYSTEM_UI + EMERGENCY
 }

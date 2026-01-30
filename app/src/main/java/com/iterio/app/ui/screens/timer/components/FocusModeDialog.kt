@@ -15,6 +15,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.res.stringResource
+import com.iterio.app.R
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -395,21 +397,55 @@ internal fun CancelConfirmDialog(
 internal fun FinishDialog(
     totalCycles: Int,
     totalWorkMinutes: Int,
-    onDismiss: () -> Unit
+    nextTaskName: String? = null,
+    allTasksCompleted: Boolean = false,
+    onDismiss: () -> Unit,
+    onNavigateToNextTask: (() -> Unit)? = null
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("お疲れ様でした！") },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("${totalCycles}サイクル完了しました。")
                 Text("学習時間: ${totalWorkMinutes}分")
+                if (allTasksCompleted) {
+                    Text(
+                        text = stringResource(R.string.timer_all_tasks_completed),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                if (nextTaskName != null) {
+                    Text(
+                        text = "次のタスク: $nextTaskName",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("終了")
+            if (nextTaskName != null && onNavigateToNextTask != null) {
+                TextButton(onClick = onNavigateToNextTask) {
+                    Text("次のタスクへ")
+                }
+            } else {
+                TextButton(onClick = onDismiss) {
+                    Text("終了")
+                }
             }
+        },
+        dismissButton = if (nextTaskName != null && onNavigateToNextTask != null) {
+            {
+                TextButton(onClick = onDismiss) {
+                    Text("終了")
+                }
+            }
+        } else {
+            null
         }
     )
 }

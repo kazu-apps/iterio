@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iterio.app.service.TimerPhase
@@ -22,7 +23,8 @@ import com.iterio.app.service.TimerPhase
 internal fun CircularTimer(
     timeRemainingSeconds: Int,
     totalTimeSeconds: Int,
-    phase: TimerPhase
+    phase: TimerPhase,
+    timerSize: Dp = 280.dp
 ) {
     val progress = if (totalTimeSeconds > 0) {
         timeRemainingSeconds.toFloat() / totalTimeSeconds.toFloat()
@@ -41,8 +43,10 @@ internal fun CircularTimer(
 
     val backgroundColor = MaterialTheme.colorScheme.surfaceVariant
 
+    val scaleFactor = timerSize.value / 280f
+
     Box(
-        modifier = Modifier.size(280.dp),
+        modifier = Modifier.size(timerSize),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -79,7 +83,7 @@ internal fun CircularTimer(
         Text(
             text = String.format("%02d:%02d", minutes, seconds),
             style = MaterialTheme.typography.displayLarge.copy(
-                fontSize = 64.sp,
+                fontSize = (64 * scaleFactor).sp,
                 fontWeight = FontWeight.Light
             ),
             color = MaterialTheme.colorScheme.onSurface

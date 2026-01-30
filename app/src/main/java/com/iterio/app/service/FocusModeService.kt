@@ -31,6 +31,9 @@ class FocusModeService : AccessibilityService() {
 
         private val _allowedPackages = MutableStateFlow<Set<String>>(emptySet())
 
+        @androidx.annotation.VisibleForTesting
+        internal fun getAllowedPackages(): Set<String> = _allowedPackages.value
+
         @Volatile
         var instance: FocusModeService? = null
             private set
@@ -38,12 +41,18 @@ class FocusModeService : AccessibilityService() {
         fun startFocusMode(strictMode: Boolean = false, additionalAllowedPackages: Set<String> = emptySet()) {
             _isFocusModeActive.value = true
             _isStrictMode.value = strictMode
-            _allowedPackages.value = SystemPackages.ALWAYS_ALLOWED + additionalAllowedPackages
+            val basePackages = if (strictMode) {
+                SystemPackages.STRICT_MODE_ALLOWED
+            } else {
+                SystemPackages.ALWAYS_ALLOWED
+            }
+            _allowedPackages.value = basePackages + additionalAllowedPackages
         }
 
         fun stopFocusMode() {
             _isFocusModeActive.value = false
             _isStrictMode.value = false
+            _allowedPackages.value = emptySet()
         }
 
         fun isActive(): Boolean = _isFocusModeActive.value
@@ -99,7 +108,6 @@ class FocusModeService : AccessibilityService() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra("FOCUS_MODE_BLOCKED", true)
             }
             startActivity(intent)
         } catch (e: Exception) {

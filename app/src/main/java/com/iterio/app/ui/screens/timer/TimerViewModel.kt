@@ -13,10 +13,12 @@ import com.iterio.app.domain.model.BgmTrack
 import com.iterio.app.domain.model.PomodoroSettings
 import com.iterio.app.domain.model.SubscriptionStatus
 import com.iterio.app.domain.model.Task
+import com.iterio.app.domain.repository.TaskRepository
 import com.iterio.app.domain.usecase.FinishTimerSessionUseCase
 import com.iterio.app.domain.usecase.GetTimerInitialStateUseCase
 import com.iterio.app.domain.usecase.StartTimerSessionUseCase
 import com.iterio.app.util.InstalledAppsHelper
+import java.time.LocalDate
 import com.iterio.app.service.BgmState
 import timber.log.Timber
 import com.iterio.app.service.TimerPhase
@@ -51,7 +53,12 @@ data class TimerUiState(
     // 許可アプリ関連
     val installedApps: List<AllowedApp> = emptyList(),
     val defaultAllowedApps: Set<String> = emptySet(),
-    val isLoadingApps: Boolean = true
+    val isLoadingApps: Boolean = true,
+    // 次のタスク（ループモード用）
+    val nextTaskId: Long? = null,
+    val nextTaskName: String? = null,
+    val isAutoLoopSession: Boolean = false,
+    val allTasksCompleted: Boolean = false
 )
 
 @HiltViewModel
@@ -61,6 +68,7 @@ class TimerViewModel @Inject constructor(
     private val getTimerInitialStateUseCase: GetTimerInitialStateUseCase,
     private val startTimerSessionUseCase: StartTimerSessionUseCase,
     private val finishTimerSessionUseCase: FinishTimerSessionUseCase,
+    private val taskRepository: TaskRepository,
     private val premiumManager: PremiumManager,
     private val bgmManager: BgmManager,
     private val installedAppsHelper: InstalledAppsHelper
@@ -211,6 +219,30 @@ class TimerViewModel @Inject constructor(
         if (currentShowFinishDialog && !previousShowFinishDialog) {
             Timber.d("finishSession called: interrupted=false, sessionId=$currentSessionId")
             finishSession(false)
+            loadNextTask()
+        }
+    }
+
+    /**
+     * セッション完了時に今日の未完了タスクから次のタスクを探す
+     */
+    internal fun loadNextTask() {
+        viewModelScope.launch {
+            val currentTaskId = _uiState.value.task?.id ?: return@launch
+            taskRepository.getTodayScheduledTasks(LocalDate.now())
+                .firstOrNull()
+                ?.let { todayTasks ->
+                    val nextTask = todayTasks.firstOrNull { task ->
+                        task.id != currentTaskId && !task.isCompletedToday
+                    }
+                    _uiState.update {
+                        it.copy(
+                            nextTaskId = nextTask?.id,
+                            nextTaskName = nextTask?.name,
+                            allTasksCompleted = nextTask == null && it.isAutoLoopSession
+                        )
+                    }
+                }
         }
     }
 
@@ -237,7 +269,8 @@ class TimerViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isSessionLockModeEnabled = lockModeEnabled,
-                    totalCycles = cycles
+                    totalCycles = cycles,
+                    isAutoLoopSession = autoLoopEnabled
                 )
             }
 

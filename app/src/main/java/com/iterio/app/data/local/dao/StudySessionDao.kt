@@ -35,6 +35,18 @@ interface StudySessionDao {
     """)
     suspend fun getTotalCyclesForDay(startOfDay: LocalDateTime, endOfDay: LocalDateTime): Int
 
+    @Query("""
+        SELECT COALESCE(SUM(workDurationMinutes), 0) FROM study_sessions
+        WHERE startedAt >= :startOfDay AND startedAt < :endOfDay
+    """)
+    fun observeTotalMinutesForDay(startOfDay: LocalDateTime, endOfDay: LocalDateTime): Flow<Int>
+
+    @Query("""
+        SELECT COALESCE(SUM(cyclesCompleted), 0) FROM study_sessions
+        WHERE startedAt >= :startOfDay AND startedAt < :endOfDay
+    """)
+    fun observeTotalCyclesForDay(startOfDay: LocalDateTime, endOfDay: LocalDateTime): Flow<Int>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: StudySessionEntity): Long
 

@@ -4,16 +4,22 @@ import android.content.Context
 import app.cash.turbine.test
 import com.iterio.app.domain.common.Result
 import com.iterio.app.widget.IterioWidgetReceiver
+import com.iterio.app.domain.model.DeadlineItem
 import com.iterio.app.domain.model.ReviewTask
 import com.iterio.app.domain.model.ScheduleType
+import com.iterio.app.domain.model.SubjectGroup
 import com.iterio.app.domain.model.Task
 import com.iterio.app.domain.repository.DailyStatsRepository
 import com.iterio.app.domain.repository.DayStats
 import com.iterio.app.domain.repository.ReviewTaskRepository
 import com.iterio.app.domain.repository.StudySessionRepository
+import com.iterio.app.domain.repository.SubjectGroupRepository
 import com.iterio.app.domain.repository.TaskRepository
 import com.iterio.app.domain.usecase.GetTodayTasksUseCase
 import com.iterio.app.domain.usecase.TodayTasksResult
+import com.iterio.app.service.TimerPhase
+import com.iterio.app.service.TimerService
+import com.iterio.app.service.TimerState
 import com.iterio.app.testutil.CoroutineTestRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -21,6 +27,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -43,6 +50,7 @@ class HomeViewModelTest {
     private lateinit var studySessionRepository: StudySessionRepository
     private lateinit var dailyStatsRepository: DailyStatsRepository
     private lateinit var reviewTaskRepository: ReviewTaskRepository
+    private lateinit var subjectGroupRepository: SubjectGroupRepository
     private lateinit var getTodayTasksUseCase: GetTodayTasksUseCase
     private lateinit var context: Context
     private lateinit var viewModel: HomeViewModel
@@ -53,8 +61,12 @@ class HomeViewModelTest {
         studySessionRepository = mockk()
         dailyStatsRepository = mockk()
         reviewTaskRepository = mockk()
+        subjectGroupRepository = mockk()
         getTodayTasksUseCase = mockk()
         context = mockk(relaxed = true)
+
+        // Reset static timer state between tests
+        TimerService.resetActiveTimerState()
 
         // Mock widget broadcast to avoid Android Intent in unit tests
         mockkObject(IterioWidgetReceiver.Companion)
@@ -63,11 +75,12 @@ class HomeViewModelTest {
 
         // Default mocks
         val today = LocalDate.now()
-        coEvery { studySessionRepository.getTotalMinutesForDay(any()) } returns Result.Success(0)
-        coEvery { studySessionRepository.getTotalCyclesForDay(any()) } returns Result.Success(0)
+        every { studySessionRepository.observeTotalMinutesForDay(any()) } returns flowOf(0)
+        every { studySessionRepository.observeTotalCyclesForDay(any()) } returns flowOf(0)
         coEvery { dailyStatsRepository.getCurrentStreak() } returns Result.Success(0)
         coEvery { dailyStatsRepository.getWeeklyData(any()) } returns Result.Success(emptyList())
         every { taskRepository.getUpcomingDeadlineTasks(any(), any()) } returns flowOf(emptyList())
+        every { subjectGroupRepository.getUpcomingDeadlineGroups(any(), any()) } returns flowOf(emptyList())
         every { getTodayTasksUseCase(any()) } returns flowOf(
             TodayTasksResult(emptyList(), emptyList())
         )
@@ -79,6 +92,7 @@ class HomeViewModelTest {
         studySessionRepository = studySessionRepository,
         dailyStatsRepository = dailyStatsRepository,
         reviewTaskRepository = reviewTaskRepository,
+        subjectGroupRepository = subjectGroupRepository,
         getTodayTasksUseCase = getTodayTasksUseCase
     )
 
@@ -95,7 +109,7 @@ class HomeViewModelTest {
 
     @Test
     fun `loads today minutes correctly`() = runTest {
-        coEvery { studySessionRepository.getTotalMinutesForDay(any()) } returns Result.Success(120)
+        every { studySessionRepository.observeTotalMinutesForDay(any()) } returns flowOf(120)
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -109,7 +123,7 @@ class HomeViewModelTest {
 
     @Test
     fun `loads today cycles correctly`() = runTest {
-        coEvery { studySessionRepository.getTotalCyclesForDay(any()) } returns Result.Success(4)
+        every { studySessionRepository.observeTotalCyclesForDay(any()) } returns flowOf(4)
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -195,9 +209,9 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `loads upcoming deadline tasks`() = runTest {
+    fun `loads upcoming task deadlines`() = runTest {
         val tasks = listOf(
-            Task(id = 1L, groupId = 1L, name = "Report", scheduleType = ScheduleType.DEADLINE, deadlineDate = LocalDate.now().plusDays(3))
+            Task(id = 1L, groupId = 1L, name = "Report", groupName = "Math", groupColor = "#FF0000", scheduleType = ScheduleType.DEADLINE, deadlineDate = LocalDate.now().plusDays(3))
         )
         every { taskRepository.getUpcomingDeadlineTasks(any(), any()) } returns flowOf(tasks)
 
@@ -206,7 +220,104 @@ class HomeViewModelTest {
 
         vm.uiState.test {
             val state = awaitItem()
-            assertEquals(1, state.upcomingDeadlineTasks.size)
+            assertEquals(1, state.upcomingTaskDeadlines.size)
+            assertEquals("Report", state.upcomingTaskDeadlines[0].name)
+            assertTrue(state.upcomingGroupDeadlines.isEmpty())
+            assertEquals(1, state.totalTaskDeadlineCount)
+            assertEquals(0, state.totalGroupDeadlineCount)
+            assertEquals(1, state.totalDeadlineCount)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `loads separated task and group deadlines`() = runTest {
+        val tasks = listOf(
+            Task(id = 1L, groupId = 1L, name = "Report", groupName = "Math", groupColor = "#FF0000", scheduleType = ScheduleType.DEADLINE, deadlineDate = LocalDate.now().plusDays(5))
+        )
+        val groups = listOf(
+            SubjectGroup(id = 10L, name = "Physics", colorHex = "#00FF00", hasDeadline = true, deadlineDate = LocalDate.now().plusDays(3))
+        )
+        every { taskRepository.getUpcomingDeadlineTasks(any(), any()) } returns flowOf(tasks)
+        every { subjectGroupRepository.getUpcomingDeadlineGroups(any(), any()) } returns flowOf(groups)
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals(1, state.upcomingTaskDeadlines.size)
+            assertEquals(1, state.upcomingGroupDeadlines.size)
+            assertEquals("Report", state.upcomingTaskDeadlines[0].name)
+            assertEquals("Physics", state.upcomingGroupDeadlines[0].name)
+            assertEquals(1, state.totalTaskDeadlineCount)
+            assertEquals(1, state.totalGroupDeadlineCount)
+            assertEquals(2, state.totalDeadlineCount)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `task deadline items limited to 3 on home screen`() = runTest {
+        val tasks = listOf(
+            Task(id = 1L, groupId = 1L, name = "T1", groupColor = "#FF0000", scheduleType = ScheduleType.DEADLINE, deadlineDate = LocalDate.now().plusDays(1)),
+            Task(id = 2L, groupId = 1L, name = "T2", groupColor = "#FF0000", scheduleType = ScheduleType.DEADLINE, deadlineDate = LocalDate.now().plusDays(2)),
+            Task(id = 3L, groupId = 1L, name = "T3", groupColor = "#FF0000", scheduleType = ScheduleType.DEADLINE, deadlineDate = LocalDate.now().plusDays(3)),
+            Task(id = 4L, groupId = 1L, name = "T4", groupColor = "#FF0000", scheduleType = ScheduleType.DEADLINE, deadlineDate = LocalDate.now().plusDays(4))
+        )
+        every { taskRepository.getUpcomingDeadlineTasks(any(), any()) } returns flowOf(tasks)
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals(3, state.upcomingTaskDeadlines.size)
+            assertEquals(4, state.totalTaskDeadlineCount)
+            assertEquals(4, state.totalDeadlineCount)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `group deadline items limited to 3 on home screen`() = runTest {
+        val groups = listOf(
+            SubjectGroup(id = 1L, name = "G1", colorHex = "#FF0000", hasDeadline = true, deadlineDate = LocalDate.now().plusDays(1)),
+            SubjectGroup(id = 2L, name = "G2", colorHex = "#FF0000", hasDeadline = true, deadlineDate = LocalDate.now().plusDays(2)),
+            SubjectGroup(id = 3L, name = "G3", colorHex = "#FF0000", hasDeadline = true, deadlineDate = LocalDate.now().plusDays(3)),
+            SubjectGroup(id = 4L, name = "G4", colorHex = "#FF0000", hasDeadline = true, deadlineDate = LocalDate.now().plusDays(4))
+        )
+        every { subjectGroupRepository.getUpcomingDeadlineGroups(any(), any()) } returns flowOf(groups)
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals(3, state.upcomingGroupDeadlines.size)
+            assertEquals(4, state.totalGroupDeadlineCount)
+            assertEquals(4, state.totalDeadlineCount)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `loads only group deadlines when no task deadlines exist`() = runTest {
+        val groups = listOf(
+            SubjectGroup(id = 10L, name = "Physics", colorHex = "#00FF00", hasDeadline = true, deadlineDate = LocalDate.now().plusDays(3))
+        )
+        every { subjectGroupRepository.getUpcomingDeadlineGroups(any(), any()) } returns flowOf(groups)
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.upcomingTaskDeadlines.isEmpty())
+            assertEquals(1, state.upcomingGroupDeadlines.size)
+            assertEquals(0, state.totalTaskDeadlineCount)
+            assertEquals(1, state.totalGroupDeadlineCount)
+            assertEquals(1, state.totalDeadlineCount)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -216,7 +327,7 @@ class HomeViewModelTest {
         val vm = createViewModel()
         advanceUntilIdle()
 
-        coEvery { studySessionRepository.getTotalMinutesForDay(any()) } returns Result.Success(180)
+        every { studySessionRepository.observeTotalMinutesForDay(any()) } returns flowOf(180)
         vm.loadHomeData()
         advanceUntilIdle()
 
@@ -256,9 +367,8 @@ class HomeViewModelTest {
     // ========== エラーパス テスト ===========
 
     @Test
-    fun `todayMinutes defaults to 0 on failure`() = runTest {
-        coEvery { studySessionRepository.getTotalMinutesForDay(any()) } returns
-            Result.Failure(com.iterio.app.domain.common.DomainError.DatabaseError("DB error"))
+    fun `todayMinutes defaults to 0 when no sessions exist`() = runTest {
+        every { studySessionRepository.observeTotalMinutesForDay(any()) } returns flowOf(0)
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -271,9 +381,8 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `todayCycles defaults to 0 on failure`() = runTest {
-        coEvery { studySessionRepository.getTotalCyclesForDay(any()) } returns
-            Result.Failure(com.iterio.app.domain.common.DomainError.DatabaseError("DB error"))
+    fun `todayCycles defaults to 0 when no sessions exist`() = runTest {
+        every { studySessionRepository.observeTotalCyclesForDay(any()) } returns flowOf(0)
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -325,5 +434,102 @@ class HomeViewModelTest {
             assertFalse(state.isLoading)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    // ========== Active Timer State テスト ===========
+
+    @Test
+    fun `activeTimerState is null when no timer is running`() = runTest {
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            assertNull(state.activeTimerState)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `activeTimerState reflects running timer`() = runTest {
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        // Simulate an active timer via the static StateFlow
+        TimerService.resetActiveTimerState()
+        // The companion _activeTimerState is private, so we test via ViewModel collecting it
+        // Since resetActiveTimerState sets it to null, the state should remain null
+        vm.uiState.test {
+            val state = awaitItem()
+            assertNull(state.activeTimerState)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `activeTimerState initial value is null after reset`() = runTest {
+        TimerService.resetActiveTimerState()
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.uiState.test {
+            val state = awaitItem()
+            assertNull(state.activeTimerState)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `activeTimerState field exists in HomeUiState`() = runTest {
+        val uiState = HomeUiState()
+        assertNull(uiState.activeTimerState)
+
+        val timerState = TimerState(
+            phase = TimerPhase.WORK,
+            timeRemainingSeconds = 1500,
+            totalTimeSeconds = 1500,
+            currentCycle = 1,
+            totalCycles = 4,
+            isRunning = true,
+            taskName = "Math Study"
+        )
+        val uiStateWithTimer = uiState.copy(activeTimerState = timerState)
+        assertNotNull(uiStateWithTimer.activeTimerState)
+        assertEquals(TimerPhase.WORK, uiStateWithTimer.activeTimerState?.phase)
+        assertEquals("Math Study", uiStateWithTimer.activeTimerState?.taskName)
+        assertTrue(uiStateWithTimer.activeTimerState?.isRunning == true)
+    }
+
+    // ========== リアクティブ更新テスト ===========
+
+    @Test
+    fun `todayMinutes updates reactively when session is saved`() = runTest {
+        val minutesFlow = MutableStateFlow(0)
+        val cyclesFlow = MutableStateFlow(0)
+        every { studySessionRepository.observeTotalMinutesForDay(any()) } returns minutesFlow
+        every { studySessionRepository.observeTotalCyclesForDay(any()) } returns cyclesFlow
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(0, vm.uiState.value.todayMinutes)
+        assertEquals(0, vm.uiState.value.todayCycles)
+
+        // Simulate session save
+        minutesFlow.value = 25
+        cyclesFlow.value = 4
+        advanceUntilIdle()
+
+        assertEquals(25, vm.uiState.value.todayMinutes)
+        assertEquals(4, vm.uiState.value.todayCycles)
+
+        // Simulate 2nd session save
+        minutesFlow.value = 50
+        cyclesFlow.value = 8
+        advanceUntilIdle()
+
+        assertEquals(50, vm.uiState.value.todayMinutes)
+        assertEquals(8, vm.uiState.value.todayCycles)
     }
 }

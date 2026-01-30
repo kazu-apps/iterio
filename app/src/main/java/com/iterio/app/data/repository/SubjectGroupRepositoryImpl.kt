@@ -8,6 +8,7 @@ import com.iterio.app.domain.model.SubjectGroup
 import com.iterio.app.domain.repository.SubjectGroupRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +22,11 @@ class SubjectGroupRepositoryImpl @Inject constructor(
         return subjectGroupDao.getAllGroups().map { entities ->
             mapper.toDomainList(entities)
         }
+    }
+
+    override fun getUpcomingDeadlineGroups(startDate: LocalDate, endDate: LocalDate): Flow<List<SubjectGroup>> {
+        return subjectGroupDao.getUpcomingDeadlineGroups(startDate.toString(), endDate.toString())
+            .map { entities -> mapper.toDomainList(entities) }
     }
 
     override suspend fun getGroupById(id: Long): Result<SubjectGroup?, DomainError> =

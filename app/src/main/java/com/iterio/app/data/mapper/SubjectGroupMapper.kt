@@ -17,7 +17,9 @@ class SubjectGroupMapper @Inject constructor() : Mapper<SubjectGroupEntity, Subj
             name = entity.name,
             colorHex = entity.colorHex,
             displayOrder = entity.displayOrder,
-            createdAt = entity.createdAt
+            createdAt = entity.createdAt,
+            hasDeadline = entity.hasDeadline,
+            deadlineDate = entity.deadlineDate
         )
     }
 
@@ -27,7 +29,9 @@ class SubjectGroupMapper @Inject constructor() : Mapper<SubjectGroupEntity, Subj
             name = domain.name,
             colorHex = domain.colorHex,
             displayOrder = domain.displayOrder,
-            createdAt = domain.createdAt
+            createdAt = domain.createdAt,
+            hasDeadline = domain.hasDeadline,
+            deadlineDate = domain.deadlineDate
         )
     }
 }

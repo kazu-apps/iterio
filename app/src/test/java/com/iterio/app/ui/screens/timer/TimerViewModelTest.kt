@@ -9,7 +9,9 @@ import com.iterio.app.domain.model.AllowedApp
 import com.iterio.app.domain.model.PomodoroSettings
 import com.iterio.app.domain.model.SubscriptionStatus
 import com.iterio.app.domain.model.SubscriptionType
+import com.iterio.app.domain.model.ScheduleType
 import com.iterio.app.domain.model.Task
+import com.iterio.app.domain.repository.TaskRepository
 import com.iterio.app.domain.usecase.FinishTimerSessionUseCase
 import com.iterio.app.domain.usecase.GetTimerInitialStateUseCase
 import com.iterio.app.domain.usecase.StartTimerSessionUseCase
@@ -28,6 +30,7 @@ import io.mockk.unmockkObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -37,6 +40,8 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
@@ -54,6 +59,7 @@ class TimerViewModelTest {
     private lateinit var getTimerInitialStateUseCase: GetTimerInitialStateUseCase
     private lateinit var startTimerSessionUseCase: StartTimerSessionUseCase
     private lateinit var finishTimerSessionUseCase: FinishTimerSessionUseCase
+    private lateinit var taskRepository: TaskRepository
     private lateinit var premiumManager: PremiumManager
     private lateinit var bgmManager: BgmManager
     private lateinit var installedAppsHelper: InstalledAppsHelper
@@ -105,6 +111,7 @@ class TimerViewModelTest {
         getTimerInitialStateUseCase = mockk(relaxed = true)
         startTimerSessionUseCase = mockk(relaxed = true)
         finishTimerSessionUseCase = mockk(relaxed = true)
+        taskRepository = mockk(relaxed = true)
         premiumManager = mockk(relaxed = true)
         bgmManager = mockk(relaxed = true)
         installedAppsHelper = mockk(relaxed = true)
@@ -146,6 +153,7 @@ class TimerViewModelTest {
             getTimerInitialStateUseCase = getTimerInitialStateUseCase,
             startTimerSessionUseCase = startTimerSessionUseCase,
             finishTimerSessionUseCase = finishTimerSessionUseCase,
+            taskRepository = taskRepository,
             premiumManager = premiumManager,
             bgmManager = bgmManager,
             installedAppsHelper = installedAppsHelper
@@ -899,5 +907,140 @@ class TimerViewModelTest {
         advanceUntilIdle()
 
         assertNull(viewModel.uiState.value.sessionId)
+    }
+
+    // ========== loadNextTask テスト ==========
+
+    private fun createTodayTask(
+        id: Long,
+        name: String,
+        completedToday: Boolean = false
+    ): Task {
+        val today = LocalDate.now()
+        return Task(
+            id = id,
+            name = name,
+            groupId = 1L,
+            scheduleType = ScheduleType.REPEAT,
+            repeatDays = setOf(today.dayOfWeek.value),
+            lastStudiedAt = if (completedToday) LocalDateTime.now() else null
+        )
+    }
+
+    @Test
+    fun `loadNextTask finds next uncompleted task`() = runTest {
+        val todayTasks = listOf(
+            createTodayTask(1L, "Task 1", completedToday = true),
+            createTodayTask(2L, "Task 2", completedToday = false),
+            createTodayTask(3L, "Task 3", completedToday = false)
+        )
+        every { taskRepository.getTodayScheduledTasks(any()) } returns flowOf(todayTasks)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadNextTask()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("次の未完了タスクのIDがセットされるべき", 2L, state.nextTaskId)
+        assertEquals("次の未完了タスクの名前がセットされるべき", "Task 2", state.nextTaskName)
+    }
+
+    @Test
+    fun `loadNextTask returns null when all tasks completed`() = runTest {
+        val todayTasks = listOf(
+            createTodayTask(1L, "Task 1", completedToday = true),
+            createTodayTask(2L, "Task 2", completedToday = true)
+        )
+        every { taskRepository.getTodayScheduledTasks(any()) } returns flowOf(todayTasks)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadNextTask()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull("全タスク完了時にnextTaskIdはnullであるべき", state.nextTaskId)
+        assertNull("全タスク完了時にnextTaskNameはnullであるべき", state.nextTaskName)
+    }
+
+    @Test
+    fun `loadNextTask skips current task`() = runTest {
+        // 現在のタスクID=1なので、id=1は未完了でもスキップされるべき
+        val todayTasks = listOf(
+            createTodayTask(1L, "Current Task", completedToday = false),
+            createTodayTask(2L, "Next Task", completedToday = false)
+        )
+        every { taskRepository.getTodayScheduledTasks(any()) } returns flowOf(todayTasks)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadNextTask()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("現在のタスクをスキップして次を選ぶべき", 2L, state.nextTaskId)
+        assertEquals("現在のタスクをスキップして次の名前を選ぶべき", "Next Task", state.nextTaskName)
+    }
+
+    @Test
+    fun `loadNextTask returns null when no today tasks exist`() = runTest {
+        every { taskRepository.getTodayScheduledTasks(any()) } returns flowOf(emptyList())
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadNextTask()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull("今日のタスクがない場合nextTaskIdはnullであるべき", state.nextTaskId)
+    }
+
+    @Test
+    fun `allTasksCompleted is true when autoLoop and no next task`() = runTest {
+        val todayTasks = listOf(
+            createTodayTask(1L, "Task 1", completedToday = true),
+            createTodayTask(2L, "Task 2", completedToday = true)
+        )
+        every { taskRepository.getTodayScheduledTasks(any()) } returns flowOf(todayTasks)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // autoLoop有効でタイマー開始
+        viewModel.startTimer(autoLoopEnabled = true)
+        advanceUntilIdle()
+
+        viewModel.loadNextTask()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue("autoLoop有効かつ全完了時にallTasksCompletedがtrueであるべき", state.allTasksCompleted)
+    }
+
+    @Test
+    fun `allTasksCompleted is false when no autoLoop`() = runTest {
+        val todayTasks = listOf(
+            createTodayTask(1L, "Task 1", completedToday = true),
+            createTodayTask(2L, "Task 2", completedToday = true)
+        )
+        every { taskRepository.getTodayScheduledTasks(any()) } returns flowOf(todayTasks)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // autoLoop無効でタイマー開始
+        viewModel.startTimer(autoLoopEnabled = false)
+        advanceUntilIdle()
+
+        viewModel.loadNextTask()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse("autoLoop無効時にallTasksCompletedがfalseであるべき", state.allTasksCompleted)
     }
 }

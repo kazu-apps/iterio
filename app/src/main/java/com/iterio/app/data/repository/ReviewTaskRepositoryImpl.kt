@@ -110,6 +110,23 @@ class ReviewTaskRepositoryImpl @Inject constructor(
                 .associate { it.date to it.count }
         }
 
+    override fun observeTaskCountByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, Int>> {
+        return reviewTaskDao.observeTaskCountByDateRange(startDate, endDate).map { counts ->
+            counts.associate { it.date to it.count }
+        }
+    }
+
+    override fun observeGroupColorsByDateRange(startDate: LocalDate, endDate: LocalDate): Flow<Map<LocalDate, List<String>>> {
+        return reviewTaskDao.observeGroupColorsByDateRange(startDate, endDate).map { items ->
+            val result = mutableMapOf<LocalDate, MutableList<String>>()
+            for (item in items) {
+                val color = item.colorHex ?: DEFAULT_GROUP_COLOR
+                result.getOrPut(item.date) { mutableListOf() }.add(color)
+            }
+            result.mapValues { it.value.toList() }
+        }
+    }
+
     override fun getAllWithDetails(): Flow<List<ReviewTask>> {
         return reviewTaskDao.getAllWithDetails().map { entities ->
             mapper.toDomainListFromDetails(entities)
@@ -126,8 +143,17 @@ class ReviewTaskRepositoryImpl @Inject constructor(
             reviewTaskDao.getIncompleteCount()
         }
 
+    override suspend fun deleteByIds(ids: List<Long>): Result<Unit, DomainError> =
+        Result.catchingSuspend {
+            reviewTaskDao.deleteByIds(ids)
+        }
+
     override suspend fun deleteAll(): Result<Unit, DomainError> =
         Result.catchingSuspend {
             reviewTaskDao.deleteAll()
         }
+
+    companion object {
+        private const val DEFAULT_GROUP_COLOR = "#00838F"
+    }
 }

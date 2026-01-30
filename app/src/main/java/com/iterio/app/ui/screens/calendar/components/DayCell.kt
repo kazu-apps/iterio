@@ -31,6 +31,7 @@ fun DayCell(
     date: LocalDate,
     heatmapColor: Color,
     taskCount: Int,
+    groupColors: List<String>,
     isSelected: Boolean,
     isToday: Boolean,
     onClick: () -> Unit,
@@ -62,18 +63,22 @@ fun DayCell(
                 color = if (heatmapColor == HeatmapColors[0]) TextSecondary else TextPrimary,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
             )
-            // Task dots (max 3)
+            // Task dots (max 3) with group colors
             if (taskCount > 0) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier.padding(top = 1.dp)
                 ) {
-                    repeat(minOf(taskCount, 3)) {
+                    val dotCount = minOf(taskCount, 3)
+                    repeat(dotCount) { index ->
+                        val dotColor = groupColors.getOrNull(index)
+                            ?.let { parseColorSafe(it) }
+                            ?: AccentTeal
                         Box(
                             modifier = Modifier
                                 .size(4.dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(AccentTeal)
+                                .background(dotColor)
                         )
                     }
                 }
@@ -87,6 +92,7 @@ fun DayCellSimple(
     date: LocalDate,
     hasStudied: Boolean,
     taskCount: Int,
+    groupColors: List<String>,
     isSelected: Boolean,
     isToday: Boolean,
     onClick: () -> Unit,
@@ -124,22 +130,37 @@ fun DayCellSimple(
                 color = if (hasStudied) TextPrimary else TextSecondary,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
             )
-            // Task dots (max 3)
+            // Task dots (max 3) with group colors
             if (taskCount > 0) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier.padding(top = 1.dp)
                 ) {
-                    repeat(minOf(taskCount, 3)) {
+                    val dotCount = minOf(taskCount, 3)
+                    repeat(dotCount) { index ->
+                        val dotColor = groupColors.getOrNull(index)
+                            ?.let { parseColorSafe(it) }
+                            ?: AccentTeal
                         Box(
                             modifier = Modifier
                                 .size(4.dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(AccentTeal)
+                                .background(dotColor)
                         )
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * カラーコード文字列を Color に安全にパース
+ */
+private fun parseColorSafe(colorHex: String): Color? {
+    return try {
+        Color(android.graphics.Color.parseColor(colorHex))
+    } catch (_: Exception) {
+        null
     }
 }

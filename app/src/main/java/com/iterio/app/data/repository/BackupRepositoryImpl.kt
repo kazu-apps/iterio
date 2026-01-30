@@ -167,7 +167,9 @@ class BackupRepositoryImpl @Inject constructor(
         name = name,
         colorHex = colorHex,
         displayOrder = displayOrder,
-        createdAt = createdAt.format(dateTimeFormatter)
+        createdAt = createdAt.format(dateTimeFormatter),
+        hasDeadline = hasDeadline,
+        deadlineDate = deadlineDate?.format(dateFormatter)
     )
 
     private fun TaskEntity.toBackup() = TaskBackup(
@@ -219,7 +221,9 @@ class BackupRepositoryImpl @Inject constructor(
         name = name,
         colorHex = colorHex,
         displayOrder = displayOrder,
-        createdAt = LocalDateTime.parse(createdAt, dateTimeFormatter)
+        createdAt = LocalDateTime.parse(createdAt, dateTimeFormatter),
+        hasDeadline = hasDeadline,
+        deadlineDate = deadlineDate?.let { LocalDate.parse(it, dateFormatter) }
     )
 
     private fun TaskBackup.toEntity() = TaskEntity(

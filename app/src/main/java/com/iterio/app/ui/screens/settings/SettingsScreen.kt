@@ -246,7 +246,50 @@ fun SettingsScreen(
     if (uiState.showReviewTasksDialog) {
         ReviewTasksListDialog(
             reviewTasks = uiState.reviewTasks,
+            selectedTaskIds = uiState.selectedReviewTaskIds,
+            onToggleSelection = { viewModel.toggleReviewTaskSelection(it) },
+            onSelectAll = { viewModel.selectAllReviewTasks() },
+            onClearSelection = { viewModel.clearReviewTaskSelection() },
+            onDeleteSelected = { viewModel.showDeleteSelectedReviewTasksDialog() },
             onDismiss = { viewModel.hideReviewTasksDialog() }
+        )
+    }
+
+    // Delete Selected Confirmation Dialog
+    if (uiState.showDeleteSelectedReviewTasksDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.hideDeleteSelectedReviewTasksDialog() },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_review_task_delete_selected_confirm),
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(
+                        R.string.settings_review_task_delete_selected_message,
+                        uiState.selectedReviewTaskIds.size
+                    ),
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.deleteSelectedReviewTasks() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.hideDeleteSelectedReviewTasksDialog() }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            containerColor = SurfaceDark
         )
     }
 

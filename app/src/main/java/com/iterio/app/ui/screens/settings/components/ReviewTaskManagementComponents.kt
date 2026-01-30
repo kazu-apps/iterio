@@ -1,5 +1,6 @@
 package com.iterio.app.ui.screens.settings.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,13 +15,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -109,8 +112,15 @@ internal fun ReviewTaskManagementSection(
 @Composable
 internal fun ReviewTasksListDialog(
     reviewTasks: List<ReviewTask>,
+    selectedTaskIds: Set<Long>,
+    onToggleSelection: (Long) -> Unit,
+    onSelectAll: () -> Unit,
+    onClearSelection: () -> Unit,
+    onDeleteSelected: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val allSelected = reviewTasks.isNotEmpty() && selectedTaskIds.size == reviewTasks.size
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -133,12 +143,73 @@ internal fun ReviewTasksListDialog(
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.height(400.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(reviewTasks) { task ->
-                        ReviewTaskItem(task = task)
+                Column {
+                    // Selection action bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = if (allSelected) onClearSelection else onSelectAll
+                        ) {
+                            Icon(
+                                Icons.Default.SelectAll,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (allSelected) {
+                                    stringResource(R.string.settings_review_task_deselect_all)
+                                } else {
+                                    stringResource(R.string.settings_review_task_select_all)
+                                },
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (selectedTaskIds.isNotEmpty()) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.settings_review_task_selected_count,
+                                        selectedTaskIds.size
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = TextSecondary
+                                )
+                                IconButton(
+                                    onClick = onDeleteSelected,
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = stringResource(R.string.settings_review_task_delete_selected),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier.height(360.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(reviewTasks, key = { it.id }) { task ->
+                            ReviewTaskItem(
+                                task = task,
+                                isSelected = task.id in selectedTaskIds,
+                                onToggle = { onToggleSelection(task.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -155,12 +226,16 @@ internal fun ReviewTasksListDialog(
 @Composable
 internal fun ReviewTaskItem(
     task: ReviewTask,
+    isSelected: Boolean,
+    onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("M/d")
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle),
         shape = RoundedCornerShape(8.dp),
         color = SurfaceVariantDark
     ) {
@@ -171,9 +246,9 @@ internal fun ReviewTaskItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = if (task.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                imageVector = if (isSelected) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
                 contentDescription = null,
-                tint = if (task.isCompleted) Teal700 else TextSecondary,
+                tint = if (isSelected) Teal700 else TextSecondary,
                 modifier = Modifier.size(20.dp)
             )
 

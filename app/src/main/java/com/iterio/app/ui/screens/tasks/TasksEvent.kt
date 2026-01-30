@@ -126,7 +126,12 @@ sealed class TasksEvent {
     /**
      * グループを追加
      */
-    data class AddGroup(val name: String, val colorHex: String) : TasksEvent()
+    data class AddGroup(
+        val name: String,
+        val colorHex: String,
+        val hasDeadline: Boolean = false,
+        val deadlineDate: LocalDate? = null
+    ) : TasksEvent()
 
     /**
      * グループを更新

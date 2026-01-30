@@ -73,6 +73,7 @@ fun CalendarScreen(
                             yearMonth = uiState.currentMonth,
                             dailyStats = uiState.dailyStats,
                             taskCountByDate = uiState.taskCountByDate,
+                            groupColorsByDate = uiState.groupColorsByDate,
                             selectedDate = uiState.selectedDate,
                             onDateClick = viewModel::selectDate
                         )
@@ -92,6 +93,7 @@ fun CalendarScreen(
                             yearMonth = uiState.currentMonth,
                             dailyStats = uiState.dailyStats,
                             taskCountByDate = uiState.taskCountByDate,
+                            groupColorsByDate = uiState.groupColorsByDate,
                             selectedDate = uiState.selectedDate,
                             onDateClick = viewModel::selectDate
                         )

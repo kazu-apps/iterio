@@ -42,6 +42,8 @@ object TestAppModule {
         every { getTasksByGroup(any()) } returns flowOf(listOf(testTask))
         coEvery { getTasksForDate(any()) } returns Result.Success(listOf(testTask))
         coEvery { getTaskCountByDateRange(any(), any()) } returns Result.Success(emptyMap())
+        every { observeTaskCountByDateRange(any(), any()) } returns flowOf(emptyMap())
+        every { observeTasksForDate(any()) } returns flowOf(emptyList())
         every { getTodayScheduledTasks(any()) } returns flowOf(emptyList())
         every { getUpcomingDeadlineTasks(any(), any()) } returns flowOf(emptyList())
     }
@@ -50,6 +52,7 @@ object TestAppModule {
     @Singleton
     fun provideSubjectGroupRepository(): SubjectGroupRepository = mockk(relaxed = true) {
         every { getAllGroups() } returns flowOf(emptyList())
+        every { getUpcomingDeadlineGroups(any(), any()) } returns flowOf(emptyList())
     }
 
     @Provides
@@ -70,6 +73,7 @@ object TestAppModule {
         every { getAllWithDetails() } returns flowOf(emptyList())
         coEvery { getPendingTaskCountForDate(any()) } returns Result.Success(0)
         coEvery { getTaskCountByDateRange(any(), any()) } returns Result.Success(emptyMap())
+        every { observeTaskCountByDateRange(any(), any()) } returns flowOf(emptyMap())
         coEvery { getTotalCount() } returns Result.Success(0)
         coEvery { getIncompleteCount() } returns Result.Success(0)
     }

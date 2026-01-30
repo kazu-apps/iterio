@@ -29,4 +29,13 @@ interface SubjectGroupDao {
 
     @Query("SELECT * FROM subject_groups ORDER BY displayOrder ASC, createdAt DESC")
     suspend fun getAll(): List<SubjectGroupEntity>
+
+    @Query("""
+        SELECT * FROM subject_groups
+        WHERE hasDeadline = 1
+        AND deadlineDate > :today
+        AND deadlineDate <= :endDate
+        ORDER BY deadlineDate ASC
+    """)
+    fun getUpcomingDeadlineGroups(today: String, endDate: String): Flow<List<SubjectGroupEntity>>
 }

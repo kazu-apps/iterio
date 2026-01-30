@@ -176,7 +176,7 @@ class TimerServiceTest {
     }
 
     @Test
-    fun `TimerState autoLoop restarts from cycle 1`() {
+    fun `TimerState session completion with autoLoop enabled`() {
         val lastCycleState = TimerState(
             phase = TimerPhase.WORK,
             timeRemainingSeconds = 0,
@@ -189,20 +189,21 @@ class TimerServiceTest {
             autoLoopEnabled = true
         )
 
-        // With autoLoop enabled, restart from cycle 1
-        val workSeconds = lastCycleState.workDurationMinutes * 60
-        val loopedState = lastCycleState.copy(
-            phase = TimerPhase.WORK,
-            timeRemainingSeconds = workSeconds,
-            totalTimeSeconds = workSeconds,
-            currentCycle = 1,
-            totalWorkMinutes = 0 // Reset for new loop
+        val newWorkMinutes = lastCycleState.totalWorkMinutes + lastCycleState.workDurationMinutes
+
+        // With autoLoop enabled, session still completes (next task navigation handled by UI)
+        val completedState = lastCycleState.copy(
+            phase = TimerPhase.IDLE,
+            isRunning = false,
+            sessionCompleted = true,
+            totalWorkMinutes = newWorkMinutes
         )
 
-        assertEquals(TimerPhase.WORK, loopedState.phase)
-        assertEquals(1, loopedState.currentCycle)
-        assertEquals(0, loopedState.totalWorkMinutes)
-        assertTrue(loopedState.autoLoopEnabled)
+        assertEquals(TimerPhase.IDLE, completedState.phase)
+        assertFalse(completedState.isRunning)
+        assertTrue(completedState.sessionCompleted)
+        assertEquals(100, completedState.totalWorkMinutes)
+        assertTrue(completedState.autoLoopEnabled)
     }
 
     // TimerDefaults Tests

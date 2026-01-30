@@ -42,8 +42,10 @@ data class SettingsUiState(
     val reviewTaskTotalCount: Int = 0,
     val reviewTaskIncompleteCount: Int = 0,
     val reviewTasks: List<ReviewTask> = emptyList(),
+    val selectedReviewTaskIds: Set<Long> = emptySet(),
     val showReviewTasksDialog: Boolean = false,
     val showDeleteAllReviewTasksDialog: Boolean = false,
+    val showDeleteSelectedReviewTasksDialog: Boolean = false,
     // BGM settings
     val bgmTrackId: String? = null,
     val bgmVolume: Float = 0.5f,
@@ -267,7 +269,10 @@ class SettingsViewModel @Inject constructor(
 
     fun hideReviewTasksDialog() {
         _uiState.update {
-            it.copy(showReviewTasksDialog = false)
+            it.copy(
+                showReviewTasksDialog = false,
+                selectedReviewTaskIds = emptySet()
+            )
         }
     }
 
@@ -292,9 +297,58 @@ class SettingsViewModel @Inject constructor(
                             reviewTaskTotalCount = 0,
                             reviewTaskIncompleteCount = 0,
                             showDeleteAllReviewTasksDialog = false,
-                            reviewTasks = emptyList()
+                            reviewTasks = emptyList(),
+                            selectedReviewTaskIds = emptySet()
                         )
                     }
+                }
+        }
+    }
+
+    fun toggleReviewTaskSelection(taskId: Long) {
+        _uiState.update { state ->
+            val newSelection = if (taskId in state.selectedReviewTaskIds) {
+                state.selectedReviewTaskIds - taskId
+            } else {
+                state.selectedReviewTaskIds + taskId
+            }
+            state.copy(selectedReviewTaskIds = newSelection)
+        }
+    }
+
+    fun selectAllReviewTasks() {
+        _uiState.update { state ->
+            state.copy(
+                selectedReviewTaskIds = state.reviewTasks.map { it.id }.toSet()
+            )
+        }
+    }
+
+    fun clearReviewTaskSelection() {
+        _uiState.update { it.copy(selectedReviewTaskIds = emptySet()) }
+    }
+
+    fun showDeleteSelectedReviewTasksDialog() {
+        _uiState.update { it.copy(showDeleteSelectedReviewTasksDialog = true) }
+    }
+
+    fun hideDeleteSelectedReviewTasksDialog() {
+        _uiState.update { it.copy(showDeleteSelectedReviewTasksDialog = false) }
+    }
+
+    fun deleteSelectedReviewTasks() {
+        viewModelScope.launch {
+            val selectedIds = _uiState.value.selectedReviewTaskIds.toList()
+            if (selectedIds.isEmpty()) return@launch
+            reviewTaskRepository.deleteByIds(selectedIds)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            selectedReviewTaskIds = emptySet(),
+                            showDeleteSelectedReviewTasksDialog = false
+                        )
+                    }
+                    loadReviewTaskCounts()
                 }
         }
     }

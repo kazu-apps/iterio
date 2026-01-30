@@ -8,6 +8,7 @@ import com.iterio.app.data.local.migration.MIGRATION_3_4
 import com.iterio.app.data.local.migration.MIGRATION_4_5
 import com.iterio.app.data.local.migration.MIGRATION_5_6
 import com.iterio.app.data.local.migration.MIGRATION_6_7
+import com.iterio.app.data.local.migration.MIGRATION_7_8
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,7 +28,7 @@ object DatabaseModule {
             IterioDatabase::class.java,
             IterioDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .fallbackToDestructiveMigration()
             .build()
     }

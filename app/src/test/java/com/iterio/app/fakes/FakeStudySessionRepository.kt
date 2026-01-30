@@ -48,6 +48,20 @@ class FakeStudySessionRepository : StudySessionRepository {
                 .sumOf { it.cyclesCompleted }
         )
 
+    override fun observeTotalMinutesForDay(date: LocalDate): Flow<Int> =
+        sessions.map { map ->
+            map.values
+                .filter { it.startedAt.toLocalDate() == date }
+                .sumOf { it.workDurationMinutes }
+        }
+
+    override fun observeTotalCyclesForDay(date: LocalDate): Flow<Int> =
+        sessions.map { map ->
+            map.values
+                .filter { it.startedAt.toLocalDate() == date }
+                .sumOf { it.cyclesCompleted }
+        }
+
     override suspend fun insertSession(session: StudySession): Result<Long, DomainError> {
         val id = nextId++
         val sessionWithId = session.copy(id = id)

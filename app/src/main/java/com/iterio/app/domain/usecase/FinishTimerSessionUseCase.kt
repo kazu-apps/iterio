@@ -5,6 +5,7 @@ import com.iterio.app.domain.common.Result
 import com.iterio.app.domain.model.PomodoroSettings
 import com.iterio.app.domain.model.ReviewTask
 import com.iterio.app.domain.model.Task
+import com.iterio.app.domain.repository.DailyStatsRepository
 import com.iterio.app.domain.repository.ReviewTaskRepository
 import com.iterio.app.domain.repository.StudySessionRepository
 import com.iterio.app.domain.repository.TaskRepository
@@ -22,7 +23,8 @@ import javax.inject.Inject
 class FinishTimerSessionUseCase @Inject constructor(
     private val studySessionRepository: StudySessionRepository,
     private val reviewTaskRepository: ReviewTaskRepository,
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val dailyStatsRepository: DailyStatsRepository
 ) {
     /**
      * セッションを終了し、必要に応じてレビュータスクを生成
@@ -53,6 +55,14 @@ class FinishTimerSessionUseCase @Inject constructor(
         return finishResult.flatMap {
             // タスクの最終学習日時を更新
             taskRepository.updateLastStudiedAt(params.task.id, LocalDateTime.now())
+                .flatMap {
+                    // daily_stats テーブルを更新
+                    dailyStatsRepository.updateStats(
+                        date = LocalDate.now(),
+                        studyMinutes = params.totalWorkMinutes,
+                        subjectName = params.task.name
+                    )
+                }
                 .flatMap {
                     // レビュータスク生成条件:
                     // - グローバルのレビュー機能が有効

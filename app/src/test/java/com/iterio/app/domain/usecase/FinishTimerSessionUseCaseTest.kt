@@ -5,6 +5,7 @@ import com.iterio.app.domain.common.Result
 import com.iterio.app.domain.model.PomodoroSettings
 import com.iterio.app.domain.model.ReviewTask
 import com.iterio.app.domain.model.Task
+import com.iterio.app.domain.repository.DailyStatsRepository
 import com.iterio.app.domain.repository.ReviewTaskRepository
 import com.iterio.app.domain.repository.StudySessionRepository
 import com.iterio.app.domain.repository.TaskRepository
@@ -27,6 +28,7 @@ class FinishTimerSessionUseCaseTest {
     private lateinit var studySessionRepository: StudySessionRepository
     private lateinit var reviewTaskRepository: ReviewTaskRepository
     private lateinit var taskRepository: TaskRepository
+    private lateinit var dailyStatsRepository: DailyStatsRepository
     private lateinit var useCase: FinishTimerSessionUseCase
 
     @Before
@@ -34,13 +36,15 @@ class FinishTimerSessionUseCaseTest {
         studySessionRepository = mockk(relaxed = true)
         reviewTaskRepository = mockk(relaxed = true)
         taskRepository = mockk(relaxed = true)
+        dailyStatsRepository = mockk(relaxed = true)
 
         // Set up default return values for Result types
         coEvery { studySessionRepository.finishSession(any(), any(), any(), any()) } returns Result.Success(Unit)
         coEvery { reviewTaskRepository.insertAll(any()) } returns Result.Success(Unit)
         coEvery { taskRepository.updateLastStudiedAt(any(), any()) } returns Result.Success(Unit)
+        coEvery { dailyStatsRepository.updateStats(any(), any(), any()) } returns Result.Success(Unit)
 
-        useCase = FinishTimerSessionUseCase(studySessionRepository, reviewTaskRepository, taskRepository)
+        useCase = FinishTimerSessionUseCase(studySessionRepository, reviewTaskRepository, taskRepository, dailyStatsRepository)
     }
 
     @Test
@@ -301,5 +305,81 @@ class FinishTimerSessionUseCaseTest {
         val now = LocalDateTime.now()
         assertTrue(capturedDateTime.captured.isBefore(now.plusSeconds(1)))
         assertTrue(capturedDateTime.captured.isAfter(now.minusMinutes(1)))
+    }
+
+    @Test
+    fun `updates daily stats on session finish`() = runTest {
+        val params = FinishTimerSessionUseCase.Params(
+            sessionId = 1L,
+            task = Task(id = 10L, groupId = 1L, name = "Math"),
+            settings = PomodoroSettings(reviewEnabled = false),
+            totalWorkMinutes = 50,
+            currentCycle = 2,
+            totalCycles = 4,
+            isInterrupted = false,
+            isPremium = false,
+            reviewIntervals = emptyList()
+        )
+
+        val capturedDate = slot<LocalDate>()
+        val capturedMinutes = slot<Int>()
+        val capturedSubject = slot<String>()
+        coEvery {
+            dailyStatsRepository.updateStats(capture(capturedDate), capture(capturedMinutes), capture(capturedSubject))
+        } returns Result.Success(Unit)
+
+        useCase(params)
+
+        coVerify { dailyStatsRepository.updateStats(any(), any(), any()) }
+        assertEquals(LocalDate.now(), capturedDate.captured)
+        assertEquals(50, capturedMinutes.captured)
+    }
+
+    @Test
+    fun `updates daily stats with correct task name`() = runTest {
+        val params = FinishTimerSessionUseCase.Params(
+            sessionId = 1L,
+            task = Task(id = 10L, groupId = 1L, name = "English Vocabulary"),
+            settings = PomodoroSettings(reviewEnabled = false),
+            totalWorkMinutes = 25,
+            currentCycle = 1,
+            totalCycles = 4,
+            isInterrupted = false,
+            isPremium = false,
+            reviewIntervals = emptyList()
+        )
+
+        val capturedSubject = slot<String>()
+        coEvery {
+            dailyStatsRepository.updateStats(any(), any(), capture(capturedSubject))
+        } returns Result.Success(Unit)
+
+        useCase(params)
+
+        assertEquals("English Vocabulary", capturedSubject.captured)
+    }
+
+    @Test
+    fun `does not update daily stats when finish session fails`() = runTest {
+        coEvery {
+            studySessionRepository.finishSession(any(), any(), any(), any())
+        } returns Result.Failure(DomainError.DatabaseError("DB error"))
+
+        val params = FinishTimerSessionUseCase.Params(
+            sessionId = 1L,
+            task = Task(id = 10L, groupId = 1L, name = "Study"),
+            settings = PomodoroSettings(reviewEnabled = false),
+            totalWorkMinutes = 25,
+            currentCycle = 1,
+            totalCycles = 4,
+            isInterrupted = false,
+            isPremium = false,
+            reviewIntervals = emptyList()
+        )
+
+        val result = useCase(params)
+
+        assertTrue(result.isFailure)
+        coVerify(exactly = 0) { dailyStatsRepository.updateStats(any(), any(), any()) }
     }
 }

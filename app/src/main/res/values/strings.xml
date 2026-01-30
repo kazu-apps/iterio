@@ -20,6 +20,14 @@
     <string name="home_no_tasks">今日の復習タスクはありません</string>
     <string name="home_no_records">学習記録がありません</string>
 
+    <!-- Home Active Timer -->
+    <string name="home_timer_phase_work">作業中</string>
+    <string name="home_timer_phase_short_break">休憩中</string>
+    <string name="home_timer_phase_long_break">長休憩中</string>
+    <string name="home_timer_paused">一時停止中</string>
+    <string name="home_timer_cycle_format">サイクル %1$d/%2$d</string>
+    <string name="home_timer_tap_to_open">タイマー画面を開く</string>
+
     <!-- Record Input -->
     <string name="record_add">学習記録を追加</string>
     <string name="record_edit">記録を編集</string>
@@ -170,6 +178,7 @@
     <string name="timer_finish_title">お疲れ様でした！</string>
     <string name="timer_cancel_title">タイマーを終了しますか？</string>
     <string name="timer_cancel_message">現在の進捗は記録されます。</string>
+    <string name="timer_all_tasks_completed">全タスク完了！</string>
 
     <!-- Tasks -->
     <string name="tasks_title">タスク管理</string>
@@ -266,6 +275,12 @@
     <string name="settings_review_task_completed">完了</string>
     <string name="settings_review_task_pending">未完了</string>
     <string name="settings_review_task_review_number">第%d回復習</string>
+    <string name="settings_review_task_select_all">全選択</string>
+    <string name="settings_review_task_deselect_all">全解除</string>
+    <string name="settings_review_task_selected_count">%d件選択中</string>
+    <string name="settings_review_task_delete_selected">選択した項目を削除</string>
+    <string name="settings_review_task_delete_selected_confirm">選択した復習タスクを削除しますか？</string>
+    <string name="settings_review_task_delete_selected_message">この操作は取り消せません。%d件の復習タスクが削除されます。</string>
     <string name="close">閉じる</string>
 
     <!-- Task Review Enabled -->
@@ -289,6 +304,30 @@
     <string name="review_schedule_date_format">%1$d月%2$d日（%3$s）</string>
     <string name="review_schedule_task_group">%s</string>
     <string name="review_schedule_no_group">グループなし</string>
+
+    <!-- Group Deadline -->
+    <string name="group_deadline_toggle">期限を設定</string>
+    <string name="group_deadline_select_date">日付を選択</string>
+
+    <!-- Deadline Section -->
+    <string name="deadline_section_title">期限が近いタスク</string>
+    <string name="deadline_view_all">すべて見る (%d件)</string>
+    <string name="deadline_empty">期限が近いタスクはありません</string>
+    <string name="deadline_date_format">期限: %1$s（あと%2$d日）</string>
+    <string name="deadline_start_timer">タイマー開始</string>
+    <string name="deadline_group_label">グループ</string>
+    <string name="deadline_task_subtitle">タスクの期限</string>
+    <string name="deadline_group_subtitle">グループの期限</string>
+
+    <!-- Deadline List Screen -->
+    <string name="deadline_list_title">期限一覧</string>
+    <string name="deadline_list_filter_all">すべて</string>
+    <string name="deadline_list_filter_tasks">タスク</string>
+    <string name="deadline_list_filter_groups">グループ</string>
+    <string name="deadline_list_total">合計: %d件</string>
+    <string name="deadline_list_task_count">タスク: %d件</string>
+    <string name="deadline_list_group_count">グループ: %d件</string>
+    <string name="deadline_list_empty">期限が設定されたアイテムはありません</string>
 
     <!-- BGM Settings -->
     <string name="settings_bgm">BGM</string>

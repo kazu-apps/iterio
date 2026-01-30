@@ -89,6 +89,23 @@ class TimerService : Service() {
         const val EXTRA_AUTO_LOOP_ENABLED = "auto_loop_enabled"
         const val EXTRA_ALLOWED_APPS = "allowed_apps"
 
+        // Static timer state for cross-component observation (HomeScreen etc.)
+        private val _activeTimerState = MutableStateFlow<TimerState?>(null)
+        val activeTimerState: StateFlow<TimerState?> = _activeTimerState.asStateFlow()
+
+        // Session completion event for navigation (observed by IterioNavHost)
+        private val _sessionCompletedTaskId = MutableStateFlow<Long?>(null)
+        val sessionCompletedTaskId: StateFlow<Long?> = _sessionCompletedTaskId.asStateFlow()
+
+        fun consumeSessionCompletedEvent() {
+            _sessionCompletedTaskId.value = null
+        }
+
+        @androidx.annotation.VisibleForTesting
+        internal fun resetActiveTimerState() {
+            _activeTimerState.value = null
+        }
+
         fun startTimer(
             context: Context,
             taskId: Long,
@@ -168,6 +185,11 @@ class TimerService : Service() {
 
     inner class TimerBinder : Binder() {
         fun getService(): TimerService = this@TimerService
+    }
+
+    private fun updateTimerState(state: TimerState) {
+        _timerState.value = state
+        _activeTimerState.value = if (state.isRunning || state.isPaused) state else null
     }
 
     override fun onCreate() {
@@ -269,7 +291,7 @@ class TimerService : Service() {
         focusModeStrict = focusStrict
         currentAllowedApps = allowedApps
 
-        _timerState.value = TimerState(
+        updateTimerState(TimerState(
             phase = TimerPhase.WORK,
             timeRemainingSeconds = totalSeconds,
             totalTimeSeconds = totalSeconds,
@@ -285,7 +307,7 @@ class TimerService : Service() {
             longBreakMinutes = longBreak,
             sessionCompleted = false,
             autoLoopEnabled = autoLoop
-        )
+        ))
 
         // Start focus mode if enabled and service is available
         if (focusModeEnabled && FocusModeService.isServiceRunning.value) {
@@ -309,19 +331,20 @@ class TimerService : Service() {
 
     private fun pauseTimerInternal() {
         countDownTimer?.cancel()
-        _timerState.value = _timerState.value.copy(isRunning = false, isPaused = true)
+        updateTimerState(_timerState.value.copy(isRunning = false, isPaused = true))
         updateNotification()
     }
 
     private fun resumeTimerInternal() {
-        _timerState.value = _timerState.value.copy(isRunning = true, isPaused = false)
+        updateTimerState(_timerState.value.copy(isRunning = true, isPaused = false))
         startCountDown()
         updateNotification()
     }
 
     private fun stopTimerInternal() {
         countDownTimer?.cancel()
-        _timerState.value = TimerState()
+        updateTimerState(TimerState())
+        _sessionCompletedTaskId.value = null
 
         // Stop focus mode
         FocusModeService.stopFocusMode()
@@ -349,7 +372,7 @@ class TimerService : Service() {
         countDownTimer = object : CountDownTimer(remainingMillis, TimeConstants.MILLIS_PER_SECOND) {
             override fun onTick(millisUntilFinished: Long) {
                 val seconds = (millisUntilFinished / TimeConstants.MILLIS_PER_SECOND).toInt()
-                _timerState.value = _timerState.value.copy(timeRemainingSeconds = seconds)
+                updateTimerState(_timerState.value.copy(timeRemainingSeconds = seconds))
 
                 // Only rebuild notification when display text changes or in final countdown
                 val minutes = seconds / TimeConstants.SECONDS_PER_MINUTE
@@ -397,88 +420,15 @@ class TimerService : Service() {
                 val newWorkMinutes = state.totalWorkMinutes + state.workDurationMinutes
 
                 if (state.currentCycle >= state.totalCycles) {
-                    // 最後のサイクル完了 -> 休憩なしでセッション完了
-                    if (state.autoLoopEnabled) {
-                        // 自動ループ: サイクル1から再開
-                        val workSeconds = state.workDurationMinutes * TimeConstants.SECONDS_PER_MINUTE
-                        _timerState.value = state.copy(
-                            phase = TimerPhase.WORK,
-                            timeRemainingSeconds = workSeconds,
-                            totalTimeSeconds = workSeconds,
-                            currentCycle = 1,
-                            totalWorkMinutes = 0  // 新しいループなのでリセット
-                        )
-                        updateNotification()
-                        updateWidgetState()
-                        startCountDown()
-                    } else {
-                        // Session complete（休憩なし）
-                        _timerState.value = state.copy(
-                            phase = TimerPhase.IDLE,
-                            isRunning = false,
-                            sessionCompleted = true,
-                            totalWorkMinutes = newWorkMinutes
-                        )
-
-                        // Stop focus mode and hide overlay
-                        FocusModeService.stopFocusMode()
-                        LockOverlayService.hideOverlay(this)
-
-                        updateNotification()
-                        updateWidgetState()
-                        // Keep service running briefly to allow UI to read final state
-                    }
-                } else {
-                    // Short break
-                    val shortBreakSeconds = state.shortBreakMinutes * TimeConstants.SECONDS_PER_MINUTE
-                    _timerState.value = state.copy(
-                        phase = TimerPhase.SHORT_BREAK,
-                        timeRemainingSeconds = shortBreakSeconds,
-                        totalTimeSeconds = shortBreakSeconds,
-                        totalWorkMinutes = newWorkMinutes
-                    )
-                    updateNotification()
-                    updateWidgetState()
-                    startCountDown()
-                }
-            }
-
-            TimerPhase.SHORT_BREAK -> {
-                // Next work cycle
-                val workSeconds = state.workDurationMinutes * TimeConstants.SECONDS_PER_MINUTE
-                _timerState.value = state.copy(
-                    phase = TimerPhase.WORK,
-                    timeRemainingSeconds = workSeconds,
-                    totalTimeSeconds = workSeconds,
-                    currentCycle = state.currentCycle + 1
-                )
-                updateNotification()
-                updateWidgetState()
-                startCountDown()
-            }
-
-            TimerPhase.LONG_BREAK -> {
-                // 長休憩完了後（スキップ等でここに到達した場合）
-                if (state.autoLoopEnabled) {
-                    // 自動ループ: サイクル1から再開
-                    val workSeconds = state.workDurationMinutes * TimeConstants.SECONDS_PER_MINUTE
-                    _timerState.value = state.copy(
-                        phase = TimerPhase.WORK,
-                        timeRemainingSeconds = workSeconds,
-                        totalTimeSeconds = workSeconds,
-                        currentCycle = 1,
-                        totalWorkMinutes = 0  // 新しいループなのでリセット
-                    )
-                    updateNotification()
-                    updateWidgetState()
-                    startCountDown()
-                } else {
+                    // 最後のサイクル完了 -> セッション完了
                     // Session complete
-                    _timerState.value = state.copy(
+                    updateTimerState(state.copy(
                         phase = TimerPhase.IDLE,
                         isRunning = false,
-                        sessionCompleted = true
-                    )
+                        sessionCompleted = true,
+                        totalWorkMinutes = newWorkMinutes
+                    ))
+                    _sessionCompletedTaskId.value = state.taskId
 
                     // Stop focus mode and hide overlay
                     FocusModeService.stopFocusMode()
@@ -487,7 +437,67 @@ class TimerService : Service() {
                     updateNotification()
                     updateWidgetState()
                     // Keep service running briefly to allow UI to read final state
+                } else {
+                    // Short break - 休憩中はフォーカスモード・ロックを解除
+                    FocusModeService.stopFocusMode()
+                    LockOverlayService.hideOverlay(this)
+
+                    val shortBreakSeconds = state.shortBreakMinutes * TimeConstants.SECONDS_PER_MINUTE
+                    updateTimerState(state.copy(
+                        phase = TimerPhase.SHORT_BREAK,
+                        timeRemainingSeconds = shortBreakSeconds,
+                        totalTimeSeconds = shortBreakSeconds,
+                        totalWorkMinutes = newWorkMinutes
+                    ))
+                    updateNotification()
+                    updateWidgetState()
+                    startCountDown()
                 }
+            }
+
+            TimerPhase.SHORT_BREAK -> {
+                // Next work cycle - 作業復帰時にフォーカスモード・ロックを再有効化
+                if (focusModeEnabled && FocusModeService.isServiceRunning.value) {
+                    FocusModeService.startFocusMode(focusModeStrict, currentAllowedApps)
+                }
+                if (focusModeEnabled && focusModeStrict && LockOverlayService.canDrawOverlays(this)) {
+                    LockOverlayService.showOverlay(this)
+                }
+
+                val workSeconds = state.workDurationMinutes * TimeConstants.SECONDS_PER_MINUTE
+                updateTimerState(state.copy(
+                    phase = TimerPhase.WORK,
+                    timeRemainingSeconds = workSeconds,
+                    totalTimeSeconds = workSeconds,
+                    currentCycle = state.currentCycle + 1
+                ))
+                updateNotification()
+                updateWidgetState()
+                updateOverlayTime()
+                startCountDown()
+            }
+
+            TimerPhase.LONG_BREAK -> {
+                // 長休憩完了後 - 作業復帰時にフォーカスモード・ロックを再有効化
+                if (focusModeEnabled && FocusModeService.isServiceRunning.value) {
+                    FocusModeService.startFocusMode(focusModeStrict, currentAllowedApps)
+                }
+                if (focusModeEnabled && focusModeStrict && LockOverlayService.canDrawOverlays(this)) {
+                    LockOverlayService.showOverlay(this)
+                }
+
+                val workSeconds = state.workDurationMinutes * TimeConstants.SECONDS_PER_MINUTE
+                updateTimerState(state.copy(
+                    phase = TimerPhase.WORK,
+                    timeRemainingSeconds = workSeconds,
+                    totalTimeSeconds = workSeconds,
+                    currentCycle = 1,
+                    totalWorkMinutes = 0
+                ))
+                updateNotification()
+                updateWidgetState()
+                updateOverlayTime()
+                startCountDown()
             }
 
             TimerPhase.IDLE -> {}
@@ -627,6 +637,9 @@ class TimerService : Service() {
             soundPool = null
             soundPoolLoaded = false
         }
+
+        _activeTimerState.value = null
+        _sessionCompletedTaskId.value = null
 
         super.onDestroy()
     }

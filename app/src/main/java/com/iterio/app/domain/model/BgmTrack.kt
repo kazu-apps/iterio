@@ -1,7 +1,15 @@
 package com.iterio.app.domain.model
 
-import androidx.annotation.RawRes
-import com.iterio.app.R
+/**
+ * 音声生成アルゴリズムの種類
+ */
+enum class AudioGeneratorType {
+    WHITE_NOISE,
+    RAIN,
+    FOREST,
+    WAVES,
+    LOFI_STUDY
+}
 
 /**
  * BGMトラックを表すデータクラス
@@ -10,7 +18,7 @@ data class BgmTrack(
     val id: String,
     val nameJa: String,
     val category: BgmCategory,
-    @RawRes val resourceId: Int
+    val generatorType: AudioGeneratorType
 )
 
 /**
@@ -32,31 +40,31 @@ object BgmTracks {
             id = "rain",
             nameJa = "雨音",
             category = BgmCategory.NATURE,
-            resourceId = R.raw.bgm_rain
+            generatorType = AudioGeneratorType.RAIN
         ),
         BgmTrack(
             id = "forest",
             nameJa = "森の音",
             category = BgmCategory.NATURE,
-            resourceId = R.raw.bgm_forest
+            generatorType = AudioGeneratorType.FOREST
         ),
         BgmTrack(
             id = "waves",
             nameJa = "波の音",
             category = BgmCategory.NATURE,
-            resourceId = R.raw.bgm_waves
+            generatorType = AudioGeneratorType.WAVES
         ),
         BgmTrack(
             id = "lofi_study",
             nameJa = "Lo-Fi Study",
             category = BgmCategory.LOFI,
-            resourceId = R.raw.bgm_lofi_study
+            generatorType = AudioGeneratorType.LOFI_STUDY
         ),
         BgmTrack(
             id = "white_noise",
             nameJa = "ホワイトノイズ",
             category = BgmCategory.WHITE_NOISE,
-            resourceId = R.raw.bgm_white_noise
+            generatorType = AudioGeneratorType.WHITE_NOISE
         )
     )
 

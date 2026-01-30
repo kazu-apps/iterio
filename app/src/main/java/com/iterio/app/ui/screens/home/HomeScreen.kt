@@ -19,6 +19,7 @@ import com.iterio.app.R
 import com.iterio.app.ui.components.LoadingIndicator
 import com.iterio.app.ui.components.IterioCard
 import com.iterio.app.ui.components.IterioTopBar
+import com.iterio.app.ui.screens.home.components.ActiveTimerBar
 import com.iterio.app.ui.screens.home.components.TodayReviewSection
 import com.iterio.app.ui.screens.home.components.TodayTasksSection
 import com.iterio.app.ui.screens.home.components.UpcomingDeadlinesSection
@@ -29,6 +30,7 @@ fun HomeScreen(
     onNavigateToTimer: (Long) -> Unit,
     onNavigateToTasks: () -> Unit,
     onNavigateToReviewSchedule: () -> Unit = {},
+    onNavigateToDeadlineList: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -51,6 +53,12 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
+
+                // Active Timer Bar
+                ActiveTimerBar(
+                    timerState = uiState.activeTimerState,
+                    onNavigateToTimer = onNavigateToTimer
+                )
 
                 // Today's Stats Row
                 Row(
@@ -151,8 +159,11 @@ fun HomeScreen(
 
                 // Upcoming Deadlines Section
                 UpcomingDeadlinesSection(
-                    tasks = uiState.upcomingDeadlineTasks,
-                    onStartTimer = onNavigateToTimer
+                    taskDeadlines = uiState.upcomingTaskDeadlines,
+                    groupDeadlines = uiState.upcomingGroupDeadlines,
+                    totalDeadlineCount = uiState.totalDeadlineCount,
+                    onStartTimer = onNavigateToTimer,
+                    onViewAll = onNavigateToDeadlineList
                 )
 
                 // Today's Review Section

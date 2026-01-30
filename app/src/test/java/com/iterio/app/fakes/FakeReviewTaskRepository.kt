@@ -130,6 +130,39 @@ class FakeReviewTaskRepository : ReviewTaskRepository {
         return Result.Success(result)
     }
 
+    override fun observeTaskCountByDateRange(
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Flow<Map<LocalDate, Int>> {
+        return tasks.map { map ->
+            val result = mutableMapOf<LocalDate, Int>()
+            map.values.forEach { task ->
+                val date = task.scheduledDate
+                if (date in startDate..endDate) {
+                    result[date] = (result[date] ?: 0) + 1
+                }
+            }
+            result.toMap()
+        }
+    }
+
+    override fun observeGroupColorsByDateRange(
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Flow<Map<LocalDate, List<String>>> {
+        return tasks.map { map ->
+            val result = mutableMapOf<LocalDate, MutableList<String>>()
+            map.values.forEach { task ->
+                val date = task.scheduledDate
+                if (date in startDate..endDate) {
+                    val color = task.groupName ?: "#00838F" // Fake: groupNameをcolorとして代用
+                    result.getOrPut(date) { mutableListOf() }.add(color)
+                }
+            }
+            result.mapValues { it.value.toList() }
+        }
+    }
+
     override fun getAllWithDetails(): Flow<List<ReviewTask>> =
         tasks.map { map -> map.values.toList() }
 
@@ -138,6 +171,11 @@ class FakeReviewTaskRepository : ReviewTaskRepository {
 
     override suspend fun getIncompleteCount(): Result<Int, DomainError> =
         Result.Success(tasks.value.values.count { !it.isCompleted })
+
+    override suspend fun deleteByIds(ids: List<Long>): Result<Unit, DomainError> {
+        tasks.value = tasks.value.filterKeys { it !in ids }
+        return Result.Success(Unit)
+    }
 
     override suspend fun deleteAll(): Result<Unit, DomainError> {
         tasks.value = emptyMap()

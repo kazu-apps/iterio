@@ -3,6 +3,7 @@ package com.iterio.app.data.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Entity(
@@ -15,5 +16,7 @@ data class SubjectGroupEntity(
     val name: String,
     val colorHex: String = "#00838F",
     val displayOrder: Int = 0,
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    val hasDeadline: Boolean = false,
+    val deadlineDate: LocalDate? = null
 )
