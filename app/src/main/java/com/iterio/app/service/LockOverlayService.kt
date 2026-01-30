@@ -3,11 +3,14 @@ package com.iterio.app.service
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.PixelFormat
+import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import timber.log.Timber
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.math.abs
 
 /**
  * Service that displays a fullscreen overlay during complete lock mode
@@ -76,10 +80,14 @@ class LockOverlayService : Service() {
         private const val ACTION_UPDATE = "com.iterio.app.action.UPDATE_OVERLAY"
         private const val EXTRA_TIME = "extra_time"
         private const val EXTRA_PHASE = "extra_phase"
+
+        private const val TAP_TIMEOUT_MS = 300L
+        private const val TAP_SLOP_PX = 24f
     }
 
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
+    private var currentLayoutParams: WindowManager.LayoutParams? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -96,6 +104,60 @@ class LockOverlayService : Service() {
         return START_STICKY
     }
 
+    private fun createLayoutParams(): WindowManager.LayoutParams {
+        return WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+    }
+
+    @Suppress("ClickableViewAccessibility")
+    private fun setupTouchHandler(view: View) {
+        var downTime = 0L
+        var downX = 0f
+        var downY = 0f
+        view.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    downTime = event.eventTime
+                    downX = event.x
+                    downY = event.y
+                }
+                MotionEvent.ACTION_UP -> {
+                    val elapsed = event.eventTime - downTime
+                    val dx = abs(event.x - downX)
+                    val dy = abs(event.y - downY)
+                    if (elapsed < TAP_TIMEOUT_MS && dx < TAP_SLOP_PX && dy < TAP_SLOP_PX) {
+                        launchApp()
+                    }
+                }
+            }
+            true
+        }
+    }
+
+    private fun launchApp() {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        launchIntent?.let { startActivity(it) }
+    }
+
     private fun showOverlayView() {
         if (overlayView != null) return
         if (!Settings.canDrawOverlays(this)) return
@@ -103,28 +165,13 @@ class LockOverlayService : Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as? WindowManager
         if (windowManager == null) return
 
-        val layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.CENTER
-        }
+        val layoutParams = createLayoutParams()
+        currentLayoutParams = layoutParams
 
         overlayView = LayoutInflater.from(this).inflate(R.layout.overlay_lock_screen, null)
 
-        overlayView?.setOnClickListener {
-            // Clicking the overlay opens the app
-            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }
-            launchIntent?.let { startActivity(it) }
+        overlayView?.let { view ->
+            setupTouchHandler(view)
         }
 
         try {
@@ -132,8 +179,8 @@ class LockOverlayService : Service() {
             _isOverlayShowing.value = true
         } catch (e: Exception) {
             Timber.e(e, "Failed to add overlay view")
-            // addView失敗時はリソースをクリーンアップ
             overlayView = null
+            currentLayoutParams = null
             windowManager = null
             _isOverlayShowing.value = false
         }
@@ -148,6 +195,7 @@ class LockOverlayService : Service() {
             }
         }
         overlayView = null
+        currentLayoutParams = null
         _isOverlayShowing.value = false
         stopSelf()
     }
@@ -156,6 +204,36 @@ class LockOverlayService : Service() {
         overlayView?.let { view ->
             view.findViewById<TextView>(R.id.overlay_time_text)?.text = time
             view.findViewById<TextView>(R.id.overlay_phase_text)?.text = phase
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        val view = overlayView ?: return
+        val wm = windowManager ?: return
+
+        val savedTime = view.findViewById<TextView>(R.id.overlay_time_text)?.text?.toString() ?: currentTimeText
+        val savedPhase = view.findViewById<TextView>(R.id.overlay_phase_text)?.text?.toString() ?: currentPhaseText
+
+        val newView = LayoutInflater.from(this).inflate(R.layout.overlay_lock_screen, null)
+        newView.findViewById<TextView>(R.id.overlay_time_text)?.text = savedTime
+        newView.findViewById<TextView>(R.id.overlay_phase_text)?.text = savedPhase
+        setupTouchHandler(newView)
+        val newParams = createLayoutParams()
+
+        try {
+            wm.removeView(view)
+            wm.addView(newView, newParams)
+            currentLayoutParams = newParams
+            overlayView = newView
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to recreate overlay view on configuration change")
+            overlayView = null
+            currentLayoutParams = null
+            windowManager = null
+            _isOverlayShowing.value = false
+            stopSelf()
         }
     }
 

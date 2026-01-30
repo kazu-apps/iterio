@@ -1,8 +1,53 @@
 # HANDOVER.md
 
-## Session Status: Completed (修正9完了)
+## Session Status: Completed (バグ4: オーバーレイ全画面修正完了)
 
-## 次セッションのバグ修正ロードマップ（9件）
+## 今回のセッション: バグ4 - 集中ロック画面が全画面を覆っていない
+
+### 完了タスク
+
+`LockOverlayService.kt` の4つの根本原因を修正:
+
+| # | 問題 | 修正内容 |
+|---|------|---------|
+| A | 横向きで右端に隙間 | `FLAG_LAYOUT_NO_LIMITS` 追加、gravity を `TOP or START` に変更 |
+| B | 通知バーをスワイプダウンできる | `FLAG_NOT_FOCUSABLE` 削除（フォーカス取得でブロック） |
+| C | 画面回転でレイアウト再構築されない | `onConfigurationChanged()` オーバーライド追加 |
+| D | タッチが背後のアプリに透過 | `FLAG_NOT_TOUCH_MODAL` 削除 + `setOnTouchListener` で全イベント消費 |
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|---------|---------|
+| `service/LockOverlayService.kt` | `createLayoutParams()` 新設、`setupTouchHandler()` 新設、`onConfigurationChanged()` 追加、`launchApp()` 抽出、`currentLayoutParams` メンバ追加 |
+
+### 追加設定
+
+- API 30+ (`Build.VERSION_CODES.R`): `LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS`
+- API 28+ (`Build.VERSION_CODES.P`): `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`
+
+### ビルド結果
+
+- `compileDebugKotlin` BUILD SUCCESSFUL
+
+### 検証方法（手動テスト）
+
+| テスト項目 | 期待動作 |
+|-----------|---------|
+| 縦画面でオーバーレイ表示 | 画面全体を隙間なくカバー |
+| 横画面でオーバーレイ表示 | 右端含め全画面カバー、landscape レイアウト使用 |
+| 縦→横回転 | レイアウト再構築、タイマー文字保持 |
+| 横→縦回転 | 同上 |
+| 上端からスワイプダウン | 通知バー開かない |
+| オーバーレイをタップ | アプリに復帰 |
+| オーバーレイをスワイプ | 何も起きない（消費される） |
+| ノッチ付きデバイス | ノッチ領域もカバー |
+
+---
+
+## 前回セッション: 修正9件完了
+
+## バグ修正ロードマップ（9件）
 
 | # | 修正内容 | ステータス | 概要 |
 |---|---------|-----------|------|
