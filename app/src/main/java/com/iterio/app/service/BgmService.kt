@@ -84,7 +84,7 @@ class BgmService : Service() {
             val sampleRate = 44100
             val bufferSize = AudioTrack.getMinBufferSize(
                 sampleRate,
-                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.CHANNEL_OUT_STEREO,
                 AudioFormat.ENCODING_PCM_16BIT
             )
 
@@ -104,7 +104,7 @@ class BgmService : Service() {
                 .setAudioFormat(
                     AudioFormat.Builder()
                         .setSampleRate(sampleRate)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
                         .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                         .build()
                 )
@@ -166,7 +166,7 @@ class BgmService : Service() {
 
                 val bufferSize = AudioTrack.getMinBufferSize(
                     44100,
-                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.CHANNEL_OUT_STEREO,
                     AudioFormat.ENCODING_PCM_16BIT
                 )
                 generatorThread = Thread({

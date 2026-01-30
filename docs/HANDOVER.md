@@ -1,6 +1,316 @@
 # HANDOVER.md
 
-## Session Status: Completed (バグ4: オーバーレイ全画面修正完了)
+## Session Status: 完了（BGM音質改善 - 5種類のBGMをリアルな音響に全面書き直し）
+
+## 次セッションのタスクロードマップ
+
+1. 手動テスト: 各BGM再生→5種類が明確に異なる音に聞こえること
+2. TDDテスト作成: 新規BGMジェネレータ（DspUtils, 5ジェネレータ, Factory）のユニットテスト
+   - DspUtilsTest: BiquadFilter, OnePoleFilter, softClip, lerp
+   - AudioGeneratorFactoryTest: 全タイプ生成確認
+   - 各ジェネレータ共通テスト: stereo出力、volume制御、バッファサイズ、無音なし、クリッピングなし
+
+### feat: BGM音質改善 - 全5種類のBGMを複数レイヤー合成+ステレオ化 ✅完了
+
+**問題:** 全5種類のBGMが「ノイズの音量を変えただけ」に聞こえる。全てノイズベース、モノラル出力、LoFiのフィルタが壊れている、時間変化なし、スペクトル差なし。
+
+**修正方針:** 各ジェネレータを複数レイヤーの合成で書き直し、ステレオ化。
+
+**変更ファイル:**
+
+| # | ファイル | 変更内容 |
+|---|---------|---------|
+| 1 | `service/audio/DspUtils.kt` | **新規** BiquadFilter（LP/HP/BP、動的カットオフ）、OnePoleFilter、softClip(tanh)、lerp |
+| 2 | `service/audio/AudioGenerator.kt` | インターフェースのみに縮小、KDoc更新（ステレオインターリーブ仕様） |
+| 3 | `service/audio/WhiteNoiseGenerator.kt` | **新規** ステレオ非相関L/R + OnePole高域ロールオフ + 45秒呼吸LFO + softClip |
+| 4 | `service/audio/RainGenerator.kt` | **新規** 3層: バンドパスピンクノイズ + ポアソン雨粒インパルス(40-80/秒) + 遠雷(30-60秒間隔) |
+| 5 | `service/audio/ForestGenerator.kt` | **新規** 4層: 掃引バンドパス風 + FM合成鳥声(3バリエーション) + 葉擦れバースト + 小川 |
+| 6 | `service/audio/WavesGenerator.kt` | **新規** 非対称エンベロープ(1.5-2s rise/4-6s decay) + 時変LPF(500-6000Hz) + 泡層 + ステレオパン + セットウェーブ(15%) |
+| 7 | `service/audio/LoFiGenerator.kt` | **新規** 三角波コード(C3+E4G4C5ボイシング) + 75BPMドラム(kick/snare/hat) + ビニルクラックル + テープ揺れLFO |
+| 8 | `service/audio/AudioGeneratorFactory.kt` | **新規** ファクトリを独立ファイルに抽出 |
+| 9 | `service/BgmService.kt` | `CHANNEL_OUT_MONO` → `CHANNEL_OUT_STEREO`（3箇所） |
+
+**スペクトル差別化:**
+
+| トラック | 主要帯域 | 固有要素 |
+|---------|---------|---------|
+| White Noise | 20Hz-16kHz（フラット） | 広帯域、45秒呼吸 |
+| Rain | 1kHz-10kHz（高域寄り） | 雨粒インパルス、遠雷 |
+| Forest | 200Hz-5kHz（中域） | FM鳥声、掃引フィルタ |
+| Waves | 40Hz-6kHz（時変） | 非対称エンベロープ、時変LPF |
+| Lo-Fi | 50Hz-2kHz（ローパス） | ドラム、コード進行、クラックル |
+
+**ビルド結果:** `compileDebugKotlin` BUILD SUCCESSFUL
+**テスト結果:** BgmManagerTest 全テスト PASS
+
+**手動検証チェックリスト:**
+
+| テスト項目 | 期待動作 |
+|-----------|---------|
+| Rain 再生 | 雨粒の「パチパチ」が聞こえる、時々遠雷 |
+| Forest 再生 | 鳥の声が散発的に聞こえる、風が揺れる |
+| Waves 再生 | 波の寄せ・引きのリズムが聞こえる |
+| Lo-Fi 再生 | ドラムビートとコード進行が聞こえる |
+| White Noise 再生 | 滑らかで耳障りでない、微細な呼吸 |
+| ステレオ確認 | イヤホンでL/Rの違いが聞こえる |
+
+---
+
+## 前セッション: ソフトモードでシステムアプリがブロックされない修正
+
+### 前セッションのタスクロードマップ
+
+手動テストによる本修正の動作検証
+
+### fix: ソフトモードでシステムアプリ（電話・設定等）がブロックされない ✅完了
+
+**問題:** ソフトモード（アプリ制限モード）で電話・設定・ダイヤラー・連絡先などの緊急アプリがブロックされない。`SystemPackages.ALWAYS_ALLOWED` に `EMERGENCY` セットが含まれており、ソフトモードがこれを使用していたため。
+
+**根本原因:** ソフトモードは停止ボタンで解除可能なため、緊急アプリの許可は不要。ストリクトモード（解除不可）でのみ緊急アプリを許可すべき。
+
+**修正内容:**
+
+| # | ファイル | 変更内容 |
+|---|---------|---------|
+| 1 | `util/SystemPackages.kt` | `SOFT_MODE_ALLOWED` 定数追加（`LAUNCHERS + SYSTEM_UI`、EMERGENCYなし） |
+| 2 | `service/FocusModeService.kt` | ソフトモードで `SOFT_MODE_ALLOWED` を使用（`ALWAYS_ALLOWED` → `SOFT_MODE_ALLOWED`） |
+| 3 | `test/service/FocusModeServiceTest.kt` | テスト更新: ソフトモードで `SOFT_MODE_ALLOWED` を検証、`SOFT_MODE_ALLOWED` が EMERGENCY を除外するテスト追加 |
+
+**ビルド結果:** `compileDebugKotlin` BUILD SUCCESSFUL
+**テスト結果:** FocusModeServiceTest 全テスト PASS
+
+**手動検証チェックリスト:**
+
+| テスト項目 | 期待動作 |
+|-----------|---------|
+| ソフトモード → 電話アプリ起動 | Toast + Iterioに戻される |
+| ソフトモード → 設定アプリ起動 | Toast + Iterioに戻される |
+| ソフトモード → ダイヤラー起動 | Toast + Iterioに戻される |
+| ストリクトモード → 電話アプリ | 許可される（緊急用） |
+| ストリクトモード → 設定アプリ | 許可される（緊急用） |
+
+---
+
+### fix: フォーカスモード（ソフト）でアプリブロックが機能しない ✅完了
+
+**問題:** ユーザーがアプリ内設定でフォーカスモードをONにし、開始ダイアログも表示されるが、Androidのユーザー補助サービスが有効でない場合、`TimerService.startTimerInternal()` がフォーカスモードをサイレントにスキップし、実際には何もブロックされない。
+
+**根本原因:** `FocusModeService.isServiceRunning.value` が `false` の場合、`Timber.w` でログ出力のみ行い、ユーザーに一切通知しなかった。
+
+**修正内容:**
+
+| # | ファイル | 変更内容 |
+|---|---------|---------|
+| 1 | `FocusModeDialog.kt` | `isAccessibilityServiceRunning` パラメータ追加、`AccessibilityServiceWarning` composable 追加（エラーコンテナ表示 + 「設定を開く」ボタン → `ACTION_ACCESSIBILITY_SETTINGS` へ遷移） |
+| 2 | `TimerScreen.kt` | `FocusModeService.isServiceRunning` を `collectAsStateWithLifecycle` で取得し `FocusModeWarningDialog` に渡す |
+| 3 | `strings.xml` / `strings-en.xml` | 警告文字列3件追加（`focus_mode_accessibility_warning_title`, `_desc`, `_open_settings`） |
+| 4 | `TimerService.kt` | `focusModeEnabled && !isServiceRunning` の場合に `Toast.LENGTH_LONG` で既存の `focus_mode_enable_accessibility` 文字列を表示 |
+| 5 | `FocusModeService.kt` | `startFocusMode()`: 許可パッケージセットをログ出力、`onAccessibilityEvent()`: パッケージ名と判定結果をログ出力、`showBlockedWarning()`: `Handler.post` 除去（main thread 上で直接 Toast 表示） |
+
+**ビルド結果:** `compileDebugKotlin` BUILD SUCCESSFUL
+
+**手動検証チェックリスト:**
+
+| テスト項目 | 期待動作 |
+|-----------|---------|
+| ユーザー補助サービス無効 → フォーカスモード開始ダイアログ表示 | 警告バナー「ユーザー補助サービスが無効です」が表示される |
+| 警告の「設定を開く」をタップ | Android のユーザー補助設定画面に遷移 |
+| ユーザー補助サービス有効 → フォーカスモード開始ダイアログ表示 | 警告バナーが表示されない |
+| ユーザー補助サービス無効のままタイマー開始 | Toast「フォーカスモードを使用するには…」が表示される |
+| ソフトモード開始（サービス有効） → 非許可アプリ起動 | Toast + Iterioに戻される |
+| Logcat で「Focus mode started」「Focus mode event」が出力される | 診断ログが確認できる |
+
+---
+
+### バグ9: 許可アプリのチェック解除が保存されない / アプリ制限が機能しない ✅完了
+
+**問題:** タイマー画面のボトムシートで許可アプリのチェックを変更しても、DBに保存されずローカル状態のみ更新。画面遷移で元に戻る。全選択/全解除がフィルタ中に正しく動作しない。
+
+**根本原因3つ:**
+1. `TimerScreen` のボトムシートで `onSelectionChanged` が `sessionAllowedApps` ローカル状態のみ更新し、`settingsRepository.setAllowedApps()` を呼ばない
+2. 全アプリがDB上で許可済みの場合、`FocusModeService` で全アプリが `isPackageAllowed()` = true となり制限が効かない
+3. 全選択が `filteredApps.map{}.toSet()` でフィルタ外の既存選択を上書き、全解除が `emptySet()` でフィルタ外の選択も消える
+
+**修正内容:**
+
+| ファイル | 変更内容 |
+|---------|---------|
+| `ui/screens/timer/TimerViewModel.kt` | `SettingsRepository` をコンストラクタに注入、`updateAllowedApps()` メソッド追加（UiState同期更新 + DB非同期保存） |
+| `ui/screens/timer/components/AllowedAppsSelectorBottomSheet.kt` | 個別トグル・全選択・全解除で `onSelectionChanged` を即座に呼出。全選択を union に修正、全解除をフィルタ分のみ除去に修正 |
+| `ui/screens/timer/TimerScreen.kt` | `onSelectionChanged` で `viewModel.updateAllowedApps()` を呼出し（DB永続化） |
+| `test/.../TimerViewModelTest.kt` | `settingsRepository` mock 追加、`createViewModel()` 引数追加、`updateAllowedApps` テスト2件追加 |
+| `service/TimerService.kt` | 既存ビルドエラー修正（`Timber.w(error, msg)` → `Timber.w("msg: $error")`、DomainError は Throwable ではないため） |
+
+**ビルド結果:** `compileDebugKotlin` BUILD SUCCESSFUL
+**テスト結果:** TimerViewModelTest 全51テスト PASS（新規2件含む、0 failures）
+
+**手動検証チェックリスト:**
+
+| テスト項目 | 期待動作 |
+|-----------|---------|
+| タイマー画面 → 許可アプリ → チェック外す → シート閉じる → 再度開く | チェック状態が維持されている |
+| タイマー画面でチェック変更 → 設定画面に戻る | 「X個選択中」が変更後の値を表示 |
+| 許可アプリでアプリを外す → フォーカスモード開始 → そのアプリを開く | Toast警告 + Iterioに戻される（ソフトモード） |
+| 検索フィルタ中に「全選択」 | フィルタ外の既存選択が維持される |
+| 検索フィルタ中に「全解除」 | フィルタ外の既存選択が維持される |
+
+---
+
+### セキュリティレビュー Advisory Notes 対応 ✅完了
+
+**概要:** バグ8修正のセッション管理マイグレーションに対するセキュリティレビューで指摘された3件の LOW priority Advisory Notes を対応。
+
+| # | Advisory Note | 対応内容 |
+|---|--------------|---------|
+| 1 | `sessionIdDeferred` 再代入時の前回 Deferred 孤立リスク | `createSession()` にコメント追加: UI層が単一アクティブタイマーを保証する前提を文書化 |
+| 2 | セッション作成失敗時のサイレント動作 | `Timber.e` → `Timber.w` に変更し、ユーザーに影響するメッセージ（「Timer is running without a session record」）を追加 |
+| 3 | `cancelTimer(interrupted: Boolean)` の未使用パラメータ | `interrupted` パラメータを削除、全呼び出し元（TimerScreen, TimerViewModelTest）を更新 |
+
+**変更ファイル:**
+
+| ファイル | 変更内容 |
+|---------|---------|
+| `service/TimerService.kt` | Advisory #1: createSession() にコメント追加、Advisory #2: ログレベルとメッセージ改善 |
+| `ui/screens/timer/TimerViewModel.kt` | Advisory #3: `cancelTimer(interrupted: Boolean)` → `cancelTimer()` |
+| `ui/screens/timer/TimerScreen.kt` | Advisory #3: `cancelTimer(interrupted = true)` → `cancelTimer()` |
+| `test/.../TimerViewModelTest.kt` | Advisory #3: テスト名とパラメータ更新 |
+
+---
+
+### バグ8: ロック画面から戻った後、セッション完了がどこにも反映されない ✅完了
+
+**問題:** 完全ロックモード中にタイマーが全サイクル完了し、「Tap to return to app」でアプリに戻ると、学習時間・統計・復習タスク生成が一切反映されない。
+
+**根本原因:** セッション保存処理がUI層（`TimerViewModel.finishSession()`）に依存。ロック画面から戻ると ViewModel が再生成され `currentSessionId` が null になるため、`finishSession()` 内の `currentSessionId ?: state.sessionId ?: return` で早期リターンし、DB保存が実行されなかった。
+
+**修正内容: セッション作成・完了処理を TimerService（サービス層）に移動**
+
+| ファイル | 変更内容 |
+|---------|---------|
+| `service/TimerService.kt` | `@Inject` で UseCase/Repository を注入、`serviceScope` + `sessionIdDeferred` 追加、`createSession()` / `saveCompletedSession()` / `saveInterruptedSession()` / `saveSession()` 追加、`NonCancellable` でDB保存保護、`onDestroy()` で `serviceScope.cancel()` |
+| `service/TimerService.kt` (TimerState) | `sessionId: Long?` フィールド追加 |
+| `ui/screens/timer/TimerViewModel.kt` | `createSession()` / `finishSession()` / `currentSessionId` / `sessionStartTime` 削除、`StartTimerSessionUseCase` / `FinishTimerSessionUseCase` コンストラクタ引数削除、`updateUiFromServiceState()` から `finishSession()` 呼び出し削除 |
+| `test/.../TimerViewModelTest.kt` | `startTimerSessionUseCase` / `finishTimerSessionUseCase` のmock・verify・テスト2件削除、`createViewModel()` 引数更新 |
+
+**ビルド結果:** `compileDebugKotlin` BUILD SUCCESSFUL
+**テスト結果:** TimerViewModelTest 全テスト PASS
+
+**検証方法（手動テスト）:**
+
+| テスト項目 | 期待動作 |
+|-----------|---------|
+| 完全ロック→全サイクル完了→Tap to return | 学習時間・統計が反映されている |
+| 完全ロック→途中停止（通知のStop） | 中断セッションが記録される |
+| ソフトモード→全サイクル完了 | FinishDialog表示、統計反映（従来動作維持） |
+| ロックなし→全サイクル完了 | FinishDialog表示、統計反映（従来動作維持） |
+| ロックなし→キャンセル | 中断セッションが記録される |
+
+---
+
+### 機能要望: フォーカスモードに「アプリ制限モード」（ソフトロック）追加 ✅完了
+
+**概要:** フォーカスモードのロックレベルを2段階（ソフト/ハード）のラジオボタン選択に変更。
+
+**実装内容:**
+- 設定画面・タイマー開始ダイアログの「完全ロックモード」チェックボックスをラジオボタン2択に変更
+  - **アプリ制限モード（ソフト）**: デフォルト。許可外アプリ起動時にToast警告→Iterioに戻す。オーバーレイなし
+  - **完全ロックモード（ハード）**: 既存動作。Premium機能。オーバーレイで画面ロック
+- ソフトモード時、`FocusModeService` で非許可アプリ検知時にToast警告を表示してから `returnToApp()` を実行
+- 許可アプリ選択を両モードで常時表示（ハードモード時も許可アプリを選択可能に）
+- `TimerScreen` で `allowedApps` を常にパス（ハードモード時に空にしない）
+
+**変更ファイル（6ファイル）:**
+
+| ファイル | 変更内容 |
+|---------|---------|
+| `res/values/strings.xml` | 5文字列追加 + 1文字列更新 |
+| `res/values-en/strings.xml` | 5文字列追加 + 1文字列更新 |
+| `service/FocusModeService.kt` | `showBlockedWarning()` 追加、soft mode でToast表示 |
+| `ui/screens/settings/components/FocusModeSettingsSection.kt` | `SettingsPremiumSwitchItem` → `FocusModeLevelSelector` ラジオボタン |
+| `ui/screens/timer/components/FocusModeDialog.kt` | `LockModeOption` → `FocusModeLevelDialogSelector` ラジオボタン、許可アプリ常時表示 |
+| `ui/screens/timer/TimerScreen.kt` | `allowedApps` を常にパス（1行変更） |
+
+**データモデル変更:** なし。`focusModeStrict: Boolean` をそのまま使用（`false`=ソフト、`true`=ハード）
+
+**ビルド結果:** `compileDebugKotlin` BUILD SUCCESSFUL
+
+### バグ7: 完了ダイアログのサイクル数が常に設定値（3サイクル）と表示される ✅完了
+
+**問題:** タイマーで1サイクルだけ実行して完了しても、「お疲れ様でした！」ダイアログに「3サイクル完了しました。」と表示される。設定画面の「長休憩までのサイクル数: 3サイクル」の設定値をそのまま表示してしまっている。
+
+**根本原因:** `TimerScreen.kt:261` で `FinishDialog` に `uiState.totalCycles`（設定の目標サイクル数）を渡していた。本来は `uiState.currentCycle`（実際に完了したサイクル数）を渡すべきだった。
+
+**修正内容（2ファイル3行）:**
+- `FocusModeDialog.kt`: `FinishDialog` のパラメータ名 `totalCycles` → `completedCycles` にリネーム（意味の明確化）
+- `TimerScreen.kt`: `FinishDialog` に渡す値を `uiState.totalCycles` → `uiState.currentCycle` に変更
+
+**ビルド結果:** `compileDebugKotlin` BUILD SUCCESSFUL
+
+### バグ8: ロック画面から「Tap to return to app」でアプリに戻った後、セッション完了が反映されない ✅完了
+
+**修正済み:** セッション作成・完了処理を `TimerService`（サービス層）に移動。詳細は上部のバグ8セクション参照。
+
+---
+
+## 前セッション: バグ5・6完了
+
+## バグ修正ロードマップ（完了済み）
+
+| # | 修正内容 | ステータス | 概要 |
+|---|---------|-----------|------|
+| 5 | ロック画面オーバーレイの上端・下端がタッチ可能 | **完了** | 2層防御: Immersive Mode + AccessibilityService パネル閉鎖 |
+| 6 | 許可アプリ画面にアプリが表示されない | **完了** | システムアプリフィルタ削除 + `<queries>` 追加 + API 33+ 対応 |
+
+### バグ5: ロック画面オーバーレイの上端・下端がまだタッチ可能 ✅完了
+
+**問題:** バグ4修正後もステータスバー領域（上端）とナビゲーションバー領域（下端）がタッチできる。`TYPE_APPLICATION_OVERLAY` はシステムバーの下に描画されるため、フラグ変更では解決不可能。
+
+**実装: 2層防御アプローチ**
+
+| レイヤー | 手法 | 効果 |
+|---------|------|------|
+| Layer 1 (主) | Immersive Sticky Mode on MainActivity | システムバーを物理的に非表示 → タッチ対象がなくなる |
+| Layer 2 (補助) | AccessibilityService でシステムパネル即閉鎖 | エッジスワイプで一時表示された場合のフォールバック |
+
+**実装内容:**
+- `MainActivity.kt`: `enterImmersiveMode()`, `exitImmersiveMode()`, `observeStrictMode()`, `onWindowFocusChanged()` 追加。`FocusModeService.isStrictMode` を監視し、ストリクトモード ON で Immersive Sticky Mode に入り、OFF で復帰 + `enableEdgeToEdge()` 再適用
+- `FocusModeService.kt`: `SYSTEM_UI_PACKAGE` 定数追加、`onAccessibilityEvent()` でストリクトモード中に `com.android.systemui` パネルが開いたら `GLOBAL_ACTION_BACK` で即閉鎖
+
+**対象ファイル:**
+
+| ファイル | 変更内容 |
+|---------|---------|
+| `ui/MainActivity.kt` | Immersive Mode 追加 (enter/exit/observe/onWindowFocusChanged) |
+| `service/FocusModeService.kt` | システムパネル閉鎖ロジック追加 |
+
+**ビルド結果:** `compileDebugKotlin` BUILD SUCCESSFUL
+
+### バグ6: 許可アプリ画面にインストール済みアプリが1つも表示されない ✅完了
+
+**問題:** 設定 > 許可アプリ画面で「インストール済みアプリがありません」と表示。「0個選択中 / 0アプリ」。パッケージ一覧の取得自体が失敗。
+
+**根本原因2つ:**
+1. `.filter { !isSystemApp(it) }` が全システムアプリを除外 → エミュレータ/実機でプリインストールアプリ（Chrome, Gmail等）が全て `FLAG_SYSTEM` を持つため、リスト0件
+2. `<queries>` 未宣言 → Android 11+ のパッケージ可視性制限で `queryIntentActivities` が空リストを返す可能性
+
+**実装内容:**
+- `InstalledAppsHelper.kt`: システムアプリフィルタ `.filter { !isSystemApp(it) }` 削除（`CATEGORY_LAUNCHER` intent が既にユーザー向けアプリのみを返すため冗長）
+- `InstalledAppsHelper.kt`: `AllowedApp.isSystemApp` フィールドに `FLAG_SYSTEM` に基づく正確な値を設定（`false` 固定値から修正）
+- `InstalledAppsHelper.kt`: `getLaunchableApps()` で API 33+ の `ResolveInfoFlags.of()` API を使用（deprecated API 対応）
+- `InstalledAppsHelper.kt`: 未使用の `private fun isSystemApp(ApplicationInfo)` オーバーロード削除
+- `InstalledAppsHelper.kt`: 診断ログ追加（launchable apps 件数）
+- `AndroidManifest.xml`: `<queries>` ブロック追加（`ACTION_MAIN + CATEGORY_LAUNCHER`）
+
+**対象ファイル:**
+
+| ファイル | 変更内容 |
+|---------|---------|
+| `util/InstalledAppsHelper.kt` | システムアプリフィルタ削除、isSystemApp正確値設定、API 33+対応、デッドコード削除、診断ログ |
+| `AndroidManifest.xml` | `<queries>` ブロック追加 |
+
+**ビルド結果:** `compileDebugKotlin` BUILD SUCCESSFUL
+
+---
 
 ## 今回のセッション: バグ4 - 集中ロック画面が全画面を覆っていない
 
