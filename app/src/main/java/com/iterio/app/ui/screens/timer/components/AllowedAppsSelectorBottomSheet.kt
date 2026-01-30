@@ -118,12 +118,16 @@ fun AllowedAppsSelectorBottomSheet(
                 }
                 Row {
                     TextButton(onClick = {
-                        localSelectedPackages = filteredApps.map { it.packageName }.toSet()
+                        val newSet = localSelectedPackages + filteredApps.map { it.packageName }.toSet()
+                        localSelectedPackages = newSet
+                        onSelectionChanged(newSet)
                     }) {
                         Text("全選択", color = Teal700)
                     }
                     TextButton(onClick = {
-                        localSelectedPackages = emptySet()
+                        val newSet = localSelectedPackages - filteredApps.map { it.packageName }.toSet()
+                        localSelectedPackages = newSet
+                        onSelectionChanged(newSet)
                     }) {
                         Text("全解除", color = TextSecondary)
                     }
@@ -234,11 +238,13 @@ fun AllowedAppsSelectorBottomSheet(
                             app = app,
                             isSelected = localSelectedPackages.contains(app.packageName),
                             onToggle = {
-                                localSelectedPackages = if (localSelectedPackages.contains(app.packageName)) {
+                                val newSet = if (localSelectedPackages.contains(app.packageName)) {
                                     localSelectedPackages - app.packageName
                                 } else {
                                     localSelectedPackages + app.packageName
                                 }
+                                localSelectedPackages = newSet
+                                onSelectionChanged(newSet)
                             }
                         )
                     }

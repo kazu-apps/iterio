@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,9 +21,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.iterio.app.service.FocusModeService
 import com.iterio.app.ui.components.NotificationPermissionDialog
 import com.iterio.app.ui.navigation.BottomNavigationBar
 import com.iterio.app.ui.navigation.Screen
@@ -45,6 +51,8 @@ class MainActivity : ComponentActivity() {
     lateinit var premiumManager: PremiumManager
 
     private lateinit var notificationPermissionPrefs: NotificationPermissionPrefs
+
+    private var isImmersiveModeActive = false
 
     /**
      * Apply language settings synchronously before Activity is created.
@@ -84,6 +92,7 @@ class MainActivity : ComponentActivity() {
         notificationPermissionPrefs = NotificationPermissionPrefs(this)
 
         enableEdgeToEdge()
+        observeStrictMode()
         setContent {
             IterioTheme {
                 var showPermissionDialog by remember { mutableStateOf(false) }
@@ -170,6 +179,62 @@ class MainActivity : ComponentActivity() {
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun observeStrictMode() {
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                FocusModeService.isStrictMode.collectLatest { strictMode ->
+                    if (strictMode) {
+                        isImmersiveModeActive = true
+                        enterImmersiveMode()
+                    } else if (isImmersiveModeActive) {
+                        isImmersiveModeActive = false
+                        exitImmersiveMode()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun enterImmersiveMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.let { controller ->
+                controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                controller.systemBarsBehavior =
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            )
+        }
+    }
+
+    private fun exitImmersiveMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.let { controller ->
+                controller.show(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_DEFAULT
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+        }
+        enableEdgeToEdge()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && isImmersiveModeActive) {
+            enterImmersiveMode()
         }
     }
 }

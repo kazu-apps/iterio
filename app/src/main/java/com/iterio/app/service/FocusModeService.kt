@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
+import com.iterio.app.R
 import com.iterio.app.ui.MainActivity
 import com.iterio.app.util.SystemPackages
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class FocusModeService : AccessibilityService() {
 
     companion object {
+        private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
+
         private val _isServiceRunning = MutableStateFlow(false)
         val isServiceRunning: StateFlow<Boolean> = _isServiceRunning.asStateFlow()
 
@@ -44,9 +47,10 @@ class FocusModeService : AccessibilityService() {
             val basePackages = if (strictMode) {
                 SystemPackages.STRICT_MODE_ALLOWED
             } else {
-                SystemPackages.ALWAYS_ALLOWED
+                SystemPackages.SOFT_MODE_ALLOWED
             }
             _allowedPackages.value = basePackages + additionalAllowedPackages
+            Timber.d("Focus mode started: strict=$strictMode, allowedPackages=${_allowedPackages.value}")
         }
 
         fun stopFocusMode() {
@@ -84,9 +88,20 @@ class FocusModeService : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 val packageName = event.packageName?.toString() ?: return
 
+                // Layer 2: collapse system UI panel immediately in strict mode
+                if (_isStrictMode.value && packageName == SYSTEM_UI_PACKAGE) {
+                    Timber.d("Strict mode: collapsing system panel")
+                    performGlobalAction(GLOBAL_ACTION_BACK)
+                    return
+                }
+
                 // Check if the app is allowed
-                if (!isPackageAllowed(packageName)) {
-                    // Block by returning to our app
+                val allowed = isPackageAllowed(packageName)
+                Timber.d("Focus mode event: package=$packageName, allowed=$allowed, strict=${_isStrictMode.value}")
+                if (!allowed) {
+                    if (!_isStrictMode.value) {
+                        showBlockedWarning()
+                    }
                     returnToApp()
                 }
             }
@@ -99,6 +114,18 @@ class FocusModeService : AccessibilityService() {
 
         // Check allowed packages
         return _allowedPackages.value.contains(packageName)
+    }
+
+    private fun showBlockedWarning() {
+        try {
+            android.widget.Toast.makeText(
+                this,
+                getString(R.string.focus_mode_blocked_message),
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to show blocked warning toast")
+        }
     }
 
     private fun returnToApp() {

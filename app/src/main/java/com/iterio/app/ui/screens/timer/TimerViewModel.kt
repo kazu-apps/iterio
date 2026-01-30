@@ -13,10 +13,9 @@ import com.iterio.app.domain.model.BgmTrack
 import com.iterio.app.domain.model.PomodoroSettings
 import com.iterio.app.domain.model.SubscriptionStatus
 import com.iterio.app.domain.model.Task
+import com.iterio.app.domain.repository.SettingsRepository
 import com.iterio.app.domain.repository.TaskRepository
-import com.iterio.app.domain.usecase.FinishTimerSessionUseCase
 import com.iterio.app.domain.usecase.GetTimerInitialStateUseCase
-import com.iterio.app.domain.usecase.StartTimerSessionUseCase
 import com.iterio.app.util.InstalledAppsHelper
 import java.time.LocalDate
 import com.iterio.app.service.BgmState
@@ -26,12 +25,10 @@ import com.iterio.app.service.TimerService
 import com.iterio.app.service.TimerState
 import com.iterio.app.ui.bgm.BgmManager
 import com.iterio.app.ui.premium.PremiumManager
-import com.iterio.app.widget.IterioWidgetReceiver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
 import javax.inject.Inject
 
 data class TimerUiState(
@@ -66,9 +63,8 @@ class TimerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     @ApplicationContext private val context: Context,
     private val getTimerInitialStateUseCase: GetTimerInitialStateUseCase,
-    private val startTimerSessionUseCase: StartTimerSessionUseCase,
-    private val finishTimerSessionUseCase: FinishTimerSessionUseCase,
     private val taskRepository: TaskRepository,
+    private val settingsRepository: SettingsRepository,
     private val premiumManager: PremiumManager,
     private val bgmManager: BgmManager,
     private val installedAppsHelper: InstalledAppsHelper
@@ -122,8 +118,6 @@ class TimerViewModel @Inject constructor(
     }
 
     private var timerService: TimerService? = null
-    private var sessionStartTime: LocalDateTime? = null
-    private var currentSessionId: Long? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -195,8 +189,14 @@ class TimerViewModel @Inject constructor(
         }
     }
 
+    fun updateAllowedApps(packages: Set<String>) {
+        _uiState.update { it.copy(defaultAllowedApps = packages) }
+        viewModelScope.launch {
+            settingsRepository.setAllowedApps(packages.toList())
+        }
+    }
+
     private fun updateUiFromServiceState(timerState: TimerState) {
-        val previousPhase = _uiState.value.phase
         val previousShowFinishDialog = _uiState.value.showFinishDialog
 
         _uiState.update {
@@ -209,16 +209,14 @@ class TimerViewModel @Inject constructor(
                 isRunning = timerState.isRunning,
                 isPaused = timerState.isPaused,
                 totalWorkMinutes = timerState.totalWorkMinutes,
+                sessionId = timerState.sessionId,
                 showFinishDialog = timerState.sessionCompleted && timerState.phase == TimerPhase.IDLE
             )
         }
 
-        // Session completed - save and create review tasks
-        // Detect transition to session completed state (showFinishDialog becomes true)
+        // Session completed — DB save is handled by TimerService, just load next task for UI
         val currentShowFinishDialog = timerState.sessionCompleted && timerState.phase == TimerPhase.IDLE
         if (currentShowFinishDialog && !previousShowFinishDialog) {
-            Timber.d("finishSession called: interrupted=false, sessionId=$currentSessionId")
-            finishSession(false)
             loadNextTask()
         }
     }
@@ -262,9 +260,6 @@ class TimerViewModel @Inject constructor(
         val cycles = cycleCount ?: settings.cyclesBeforeLongBreak
 
         if (state.phase == TimerPhase.IDLE) {
-            sessionStartTime = LocalDateTime.now()
-            createSession(cycles)
-
             // セッションごとのロックモード状態とサイクル数を保存
             _uiState.update {
                 it.copy(
@@ -294,23 +289,6 @@ class TimerViewModel @Inject constructor(
         }
     }
 
-    private fun createSession(cycles: Int) {
-        viewModelScope.launch {
-            val task = _uiState.value.task ?: return@launch
-            val settings = _uiState.value.settings
-            val startTime = sessionStartTime ?: LocalDateTime.now()
-
-            startTimerSessionUseCase(task, settings, cycles, startTime)
-                .onSuccess { sessionId ->
-                    currentSessionId = sessionId
-                    _uiState.update { it.copy(sessionId = sessionId) }
-                }
-                .onFailure { error ->
-                    Timber.e("Failed to create session: $error")
-                }
-        }
-    }
-
     fun pauseTimer() {
         TimerService.pauseTimer(context)
         bgmManager.onTimerPause()
@@ -329,8 +307,8 @@ class TimerViewModel @Inject constructor(
         _uiState.update { it.copy(showCancelDialog = false) }
     }
 
-    fun cancelTimer(interrupted: Boolean = true) {
-        finishSession(interrupted)
+    fun cancelTimer() {
+        // Session save is handled by TimerService.stopTimerInternal()
         TimerService.stopTimer(context)
         bgmManager.onTimerStop()
         _uiState.update {
@@ -347,38 +325,6 @@ class TimerViewModel @Inject constructor(
         _uiState.update { it.copy(showFinishDialog = false) }
         TimerService.stopTimer(context)
         bgmManager.onTimerStop()
-    }
-
-    private fun finishSession(interrupted: Boolean) {
-        viewModelScope.launch {
-            val state = _uiState.value
-            val sessionId = currentSessionId ?: state.sessionId ?: return@launch
-            val task = state.task ?: return@launch
-            val settings = state.settings
-            val premium = isPremium.value
-            val isSessionCompleted = state.phase == TimerPhase.IDLE
-
-            val params = FinishTimerSessionUseCase.Params(
-                sessionId = sessionId,
-                task = task,
-                settings = settings,
-                totalWorkMinutes = state.totalWorkMinutes,
-                currentCycle = state.currentCycle,
-                totalCycles = state.totalCycles,
-                isInterrupted = interrupted,
-                isSessionCompleted = isSessionCompleted,
-                isPremium = premium,
-                reviewIntervals = premiumManager.getReviewIntervals(premium, task.reviewCount)
-            )
-
-            finishTimerSessionUseCase(params)
-                .onSuccess {
-                    IterioWidgetReceiver.sendDataChangedBroadcast(context)
-                }
-                .onFailure { error ->
-                    Timber.e("Failed to finish session: $error")
-                }
-        }
     }
 
     fun skipPhase() {

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.iterio.app.domain.model.PremiumFeature
+import com.iterio.app.service.FocusModeService
 import com.iterio.app.ui.premium.PremiumUpsellDialog
 import com.iterio.app.ui.screens.timer.components.AllowedAppsSelectorBottomSheet
 import com.iterio.app.ui.screens.timer.components.BgmButton
@@ -59,6 +60,7 @@ fun TimerScreen(
     val bgmState by viewModel.bgmState.collectAsStateWithLifecycle()
     val selectedBgmTrack by viewModel.selectedBgmTrack.collectAsStateWithLifecycle()
     val bgmVolume by viewModel.bgmVolume.collectAsStateWithLifecycle()
+    val isAccessibilityServiceRunning by FocusModeService.isServiceRunning.collectAsStateWithLifecycle()
 
     var showFocusModeWarning by remember { mutableStateOf(false) }
     var showBgmSelector by remember { mutableStateOf(false) }
@@ -249,7 +251,7 @@ fun TimerScreen(
         CancelConfirmDialog(
             onDismiss = { viewModel.hideCancelDialog() },
             onConfirm = {
-                viewModel.cancelTimer(interrupted = true)
+                viewModel.cancelTimer()
                 onNavigateBack()
             }
         )
@@ -258,7 +260,7 @@ fun TimerScreen(
     // Finish dialog
     if (uiState.showFinishDialog) {
         FinishDialog(
-            totalCycles = uiState.totalCycles,
+            completedCycles = uiState.currentCycle,
             totalWorkMinutes = uiState.totalWorkMinutes,
             nextTaskName = uiState.nextTaskName,
             allTasksCompleted = uiState.allTasksCompleted,
@@ -280,6 +282,7 @@ fun TimerScreen(
         FocusModeWarningDialog(
             context = context,
             isPremium = isPremium,
+            isAccessibilityServiceRunning = isAccessibilityServiceRunning,
             sessionLockModeEnabled = sessionLockModeEnabled,
             sessionCycleCount = sessionCycleCount,
             sessionAutoLoopEnabled = sessionAutoLoopEnabled,
@@ -303,7 +306,7 @@ fun TimerScreen(
                     lockModeEnabled = sessionLockModeEnabled,
                     cycleCount = sessionCycleCount,
                     autoLoopEnabled = sessionAutoLoopEnabled && isPremium,
-                    allowedApps = if (sessionLockModeEnabled) emptySet() else sessionAllowedApps
+                    allowedApps = sessionAllowedApps
                 )
             }
         )
@@ -317,6 +320,7 @@ fun TimerScreen(
             isLoading = uiState.isLoadingApps,
             onSelectionChanged = { selectedPackages ->
                 sessionAllowedApps = selectedPackages
+                viewModel.updateAllowedApps(selectedPackages)
             },
             onDismiss = { showAllowedAppsSelector = false }
         )

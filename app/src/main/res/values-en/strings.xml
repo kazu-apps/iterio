@@ -115,7 +115,7 @@
     <string name="settings_focus_mode_strict">Strict Mode</string>
     <string name="settings_focus_mode_strict_desc">Enable complete lock by default when starting timer</string>
     <string name="settings_allowed_apps">Allowed Apps</string>
-    <string name="settings_allowed_apps_desc">Apps allowed during lock mode</string>
+    <string name="settings_allowed_apps_desc">Apps allowed during focus mode</string>
     <string name="settings_allowed_apps_selected">%d selected</string>
     <string name="settings_timer">Timer</string>
     <string name="settings_auto_loop">Auto Loop</string>
@@ -159,6 +159,14 @@
     <string name="focus_mode_strict_desc">Complete lock (cannot be disabled)</string>
     <string name="focus_mode_normal">Normal Mode</string>
     <string name="focus_mode_normal_desc">Can be disabled in emergencies</string>
+    <string name="focus_mode_level_label">Lock Level</string>
+    <string name="focus_mode_soft">App Restriction Mode</string>
+    <string name="focus_mode_soft_desc">Shows a warning when opening non-allowed apps and returns to Iterio</string>
+    <string name="focus_mode_hard">Complete Lock Mode</string>
+    <string name="focus_mode_hard_desc">Locks screen and completely blocks other apps until timer ends</string>
+    <string name="focus_mode_accessibility_warning_title">Accessibility Service is disabled</string>
+    <string name="focus_mode_accessibility_warning_desc">Focus Mode requires the Accessibility Service to be enabled</string>
+    <string name="focus_mode_accessibility_open_settings">Open Settings</string>
 
     <!-- Timer -->
     <string name="timer_title">Timer</string>

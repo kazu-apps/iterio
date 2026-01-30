@@ -1,12 +1,15 @@
 package com.iterio.app.ui.screens.timer.components
 
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
@@ -22,12 +25,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.iterio.app.service.LockOverlayService
@@ -38,6 +43,7 @@ import com.iterio.app.ui.components.PremiumBadge
 internal fun FocusModeWarningDialog(
     context: Context,
     isPremium: Boolean,
+    isAccessibilityServiceRunning: Boolean,
     sessionLockModeEnabled: Boolean,
     sessionCycleCount: Int,
     sessionAutoLoopEnabled: Boolean,
@@ -65,6 +71,19 @@ internal fun FocusModeWarningDialog(
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("フォーカスモードを有効にすると、タイマー中は他のアプリを使用できなくなります。")
 
+                // Accessibility service warning
+                if (!isAccessibilityServiceRunning) {
+                    AccessibilityServiceWarning(
+                        onOpenSettings = {
+                            context.startActivity(
+                                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                            )
+                        }
+                    )
+                }
+
                 // Cycle count selection
                 CycleCountSelector(
                     cycleCount = sessionCycleCount,
@@ -73,15 +92,15 @@ internal fun FocusModeWarningDialog(
 
                 HorizontalDivider()
 
-                // Complete lock mode (Premium feature)
-                LockModeOption(
+                // Focus mode level selector (Soft/Hard radio buttons)
+                FocusModeLevelDialogSelector(
+                    isStrictMode = sessionLockModeEnabled,
                     isPremium = isPremium,
-                    isEnabled = sessionLockModeEnabled,
-                    onToggle = { checked ->
-                        if (isPremium) {
-                            onLockModeToggle(checked)
-                        } else {
+                    onModeChange = { strict ->
+                        if (strict && !isPremium) {
                             onShowPremiumUpsell()
+                        } else {
+                            onLockModeToggle(strict)
                         }
                     }
                 )
@@ -99,14 +118,12 @@ internal fun FocusModeWarningDialog(
                     }
                 )
 
-                // Allowed apps selection (only when not in lock mode)
-                if (!sessionLockModeEnabled) {
-                    HorizontalDivider()
-                    AllowedAppsSelector(
-                        selectedCount = sessionAllowedApps.size,
-                        onClick = onShowAllowedApps
-                    )
-                }
+                // Allowed apps selection (both modes)
+                HorizontalDivider()
+                AllowedAppsSelector(
+                    selectedCount = sessionAllowedApps.size,
+                    onClick = onShowAllowedApps
+                )
 
                 // Overlay permission warning
                 if (sessionLockModeEnabled && !LockOverlayService.canDrawOverlays(context)) {
@@ -175,22 +192,65 @@ private fun CycleCountSelector(
 }
 
 @Composable
-private fun LockModeOption(
+private fun FocusModeLevelDialogSelector(
+    isStrictMode: Boolean,
     isPremium: Boolean,
-    isEnabled: Boolean,
-    onToggle: (Boolean) -> Unit
+    onModeChange: (Boolean) -> Unit
+) {
+    Column {
+        Text(
+            text = stringResource(R.string.focus_mode_level_label),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
+
+        // Soft mode (App Restriction Mode)
+        FocusModeLevelDialogOption(
+            title = stringResource(R.string.focus_mode_soft),
+            description = stringResource(R.string.focus_mode_soft_desc),
+            selected = !isStrictMode,
+            enabled = true,
+            showPremiumBadge = false,
+            onClick = { onModeChange(false) }
+        )
+
+        // Hard mode (Complete Lock Mode)
+        FocusModeLevelDialogOption(
+            title = stringResource(R.string.focus_mode_hard),
+            description = stringResource(R.string.focus_mode_hard_desc),
+            selected = isStrictMode && isPremium,
+            enabled = isPremium,
+            showPremiumBadge = !isPremium,
+            onClick = { onModeChange(true) }
+        )
+    }
+}
+
+@Composable
+private fun FocusModeLevelDialogOption(
+    title: String,
+    description: String,
+    selected: Boolean,
+    enabled: Boolean,
+    showPremiumBadge: Boolean,
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onToggle(!isEnabled) },
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton
+            )
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Checkbox(
-            checked = isEnabled && isPremium,
-            onCheckedChange = onToggle,
-            enabled = isPremium
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            enabled = enabled
         )
         Column(modifier = Modifier.weight(1f)) {
             Row(
@@ -198,18 +258,18 @@ private fun LockModeOption(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "完全ロックモード",
+                    text = title,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = if (isPremium) MaterialTheme.colorScheme.onSurface
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface
                            else MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (!isPremium) {
+                if (showPremiumBadge) {
                     PremiumBadge()
                 }
             }
             Text(
-                text = "タイマー終了まで中断できません",
+                text = description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -289,9 +349,9 @@ private fun AllowedAppsSelector(
                 )
                 Text(
                     text = if (selectedCount == 0) {
-                        "ロックモード中に使用を許可するアプリ"
+                        stringResource(R.string.settings_allowed_apps_desc)
                     } else {
-                        "${selectedCount}個選択中"
+                        stringResource(R.string.settings_allowed_apps_selected, selectedCount)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -303,6 +363,46 @@ private fun AllowedAppsSelector(
             contentDescription = "選択",
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+private fun AccessibilityServiceWarning(
+    onOpenSettings: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.focus_mode_accessibility_warning_title),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Text(
+                    text = stringResource(R.string.focus_mode_accessibility_warning_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+            TextButton(onClick = onOpenSettings) {
+                Text(stringResource(R.string.focus_mode_accessibility_open_settings))
+            }
+        }
     }
 }
 
@@ -395,7 +495,7 @@ internal fun CancelConfirmDialog(
 
 @Composable
 internal fun FinishDialog(
-    totalCycles: Int,
+    completedCycles: Int,
     totalWorkMinutes: Int,
     nextTaskName: String? = null,
     allTasksCompleted: Boolean = false,
@@ -407,7 +507,7 @@ internal fun FinishDialog(
         title = { Text("お疲れ様でした！") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("${totalCycles}サイクル完了しました。")
+                Text("${completedCycles}サイクル完了しました。")
                 Text("学習時間: ${totalWorkMinutes}分")
                 if (allTasksCompleted) {
                     Text(

@@ -45,6 +45,28 @@ class FocusModeServiceTest {
     }
 
     @Test
+    fun `SOFT_MODE_ALLOWED excludes EMERGENCY packages`() {
+        for (pkg in SystemPackages.EMERGENCY) {
+            assertFalse(
+                "SOFT_MODE_ALLOWED should not contain EMERGENCY: $pkg",
+                SystemPackages.SOFT_MODE_ALLOWED.contains(pkg)
+            )
+        }
+        for (pkg in SystemPackages.LAUNCHERS) {
+            assertTrue(
+                "SOFT_MODE_ALLOWED should contain launcher: $pkg",
+                SystemPackages.SOFT_MODE_ALLOWED.contains(pkg)
+            )
+        }
+        for (pkg in SystemPackages.SYSTEM_UI) {
+            assertTrue(
+                "SOFT_MODE_ALLOWED should contain SYSTEM_UI: $pkg",
+                SystemPackages.SOFT_MODE_ALLOWED.contains(pkg)
+            )
+        }
+    }
+
+    @Test
     fun `STRICT_MODE_ALLOWED contains SYSTEM_UI and EMERGENCY`() {
         for (pkg in SystemPackages.SYSTEM_UI) {
             assertTrue(
@@ -79,19 +101,26 @@ class FocusModeServiceTest {
     }
 
     @Test
-    fun `startFocusMode without strictMode uses ALWAYS_ALLOWED`() {
+    fun `startFocusMode without strictMode uses SOFT_MODE_ALLOWED`() {
         FocusModeService.startFocusMode(strictMode = false)
 
         assertTrue(FocusModeService.isFocusModeActive.value)
         assertFalse(FocusModeService.isStrictMode.value)
 
         val allowedPackages = FocusModeService.getAllowedPackages()
-        assertEquals(SystemPackages.ALWAYS_ALLOWED, allowedPackages)
+        assertEquals(SystemPackages.SOFT_MODE_ALLOWED, allowedPackages)
 
         for (launcher in SystemPackages.LAUNCHERS) {
             assertTrue(
                 "Non-strict mode allowed packages should contain launcher: $launcher",
                 allowedPackages.contains(launcher)
+            )
+        }
+
+        for (pkg in SystemPackages.EMERGENCY) {
+            assertFalse(
+                "Soft mode should not contain EMERGENCY: $pkg",
+                allowedPackages.contains(pkg)
             )
         }
     }

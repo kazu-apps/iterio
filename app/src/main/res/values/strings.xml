@@ -119,7 +119,7 @@
     <string name="settings_focus_mode_strict">完全ロックモード</string>
     <string name="settings_focus_mode_strict_desc">タイマー開始時に完全ロックをデフォルトで有効にする</string>
     <string name="settings_allowed_apps">許可アプリ</string>
-    <string name="settings_allowed_apps_desc">ロックモード中に使用を許可するアプリ</string>
+    <string name="settings_allowed_apps_desc">フォーカスモード中に使用を許可するアプリ</string>
     <string name="settings_allowed_apps_selected">%d個選択中</string>
     <string name="settings_timer">タイマー</string>
     <string name="settings_auto_loop">自動ループ</string>
@@ -163,6 +163,14 @@
     <string name="focus_mode_strict_desc">完全ロック（解除不可）</string>
     <string name="focus_mode_normal">通常モード</string>
     <string name="focus_mode_normal_desc">緊急時は解除可能</string>
+    <string name="focus_mode_level_label">ロックレベル</string>
+    <string name="focus_mode_soft">アプリ制限モード</string>
+    <string name="focus_mode_soft_desc">許可外アプリを開くと警告を表示してIterioに戻します</string>
+    <string name="focus_mode_hard">完全ロックモード</string>
+    <string name="focus_mode_hard_desc">画面をロックし、タイマー終了まで他のアプリを完全にブロック</string>
+    <string name="focus_mode_accessibility_warning_title">ユーザー補助サービスが無効です</string>
+    <string name="focus_mode_accessibility_warning_desc">フォーカスモードにはユーザー補助サービスの有効化が必要です</string>
+    <string name="focus_mode_accessibility_open_settings">設定を開く</string>
 
     <!-- Timer -->
     <string name="timer_title">タイマー</string>

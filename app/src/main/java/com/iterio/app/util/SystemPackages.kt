@@ -39,6 +39,12 @@ object SystemPackages {
     )
 
     /**
+     * ソフトモードで許可されるパッケージ
+     * ランチャー + SystemUI のみ（停止ボタンで解除可能なため緊急アプリは不要）
+     */
+    val SOFT_MODE_ALLOWED = LAUNCHERS + SYSTEM_UI
+
+    /**
      * 常に許可されるべきすべてのパッケージ
      */
     val ALWAYS_ALLOWED = LAUNCHERS + SYSTEM_UI + EMERGENCY

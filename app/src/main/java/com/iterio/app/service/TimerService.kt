@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import android.media.AudioAttributes
 import android.media.SoundPool
 import android.os.Binder
@@ -15,15 +16,31 @@ import android.os.CountDownTimer
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.iterio.app.R
+import com.iterio.app.domain.model.PomodoroSettings
+import com.iterio.app.domain.repository.SettingsRepository
+import com.iterio.app.domain.repository.TaskRepository
+import com.iterio.app.domain.usecase.FinishTimerSessionUseCase
+import com.iterio.app.domain.usecase.StartTimerSessionUseCase
 import com.iterio.app.ui.MainActivity
+import com.iterio.app.ui.premium.PremiumManager
 import com.iterio.app.util.TimeConstants
 import com.iterio.app.util.TimerPhaseUtils
+import com.iterio.app.widget.IterioWidgetReceiver
 import com.iterio.app.widget.IterioWidgetStateHelper
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
 import javax.inject.Inject
 
 enum class TimerPhase {
@@ -62,7 +79,8 @@ data class TimerState(
     val shortBreakMinutes: Int = TimerDefaults.DEFAULT_SHORT_BREAK_MINUTES,
     val longBreakMinutes: Int = TimerDefaults.DEFAULT_LONG_BREAK_MINUTES,
     val sessionCompleted: Boolean = false,
-    val autoLoopEnabled: Boolean = false
+    val autoLoopEnabled: Boolean = false,
+    val sessionId: Long? = null
 )
 
 @AndroidEntryPoint
@@ -167,6 +185,15 @@ class TimerService : Service() {
             context.startService(intent)
         }
     }
+
+    @Inject lateinit var startTimerSessionUseCase: StartTimerSessionUseCase
+    @Inject lateinit var finishTimerSessionUseCase: FinishTimerSessionUseCase
+    @Inject lateinit var taskRepository: TaskRepository
+    @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var premiumManager: PremiumManager
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var sessionIdDeferred = CompletableDeferred<Long?>(null)
 
     private val binder = TimerBinder()
 
@@ -309,11 +336,19 @@ class TimerService : Service() {
             autoLoopEnabled = autoLoop
         ))
 
+        // Create session in DB
+        createSession(taskId, cycles)
+
         // Start focus mode if enabled and service is available
         if (focusModeEnabled && FocusModeService.isServiceRunning.value) {
             FocusModeService.startFocusMode(focusModeStrict, currentAllowedApps)
         } else if (focusModeEnabled && !FocusModeService.isServiceRunning.value) {
             Timber.w("Focus mode enabled but Accessibility Service is not running. Focus mode will be skipped.")
+            Toast.makeText(
+                this,
+                getString(R.string.focus_mode_enable_accessibility),
+                Toast.LENGTH_LONG
+            ).show()
         }
 
         // Show lock overlay for complete lock mode
@@ -343,6 +378,13 @@ class TimerService : Service() {
 
     private fun stopTimerInternal() {
         countDownTimer?.cancel()
+
+        // Save interrupted session if timer was active
+        val state = _timerState.value
+        if ((state.isRunning || state.isPaused) && state.sessionId != null) {
+            saveInterruptedSession()
+        }
+
         updateTimerState(TimerState())
         _sessionCompletedTaskId.value = null
 
@@ -429,6 +471,9 @@ class TimerService : Service() {
                         totalWorkMinutes = newWorkMinutes
                     ))
                     _sessionCompletedTaskId.value = state.taskId
+
+                    // Save completed session to DB (service layer — UI-independent)
+                    saveCompletedSession(newWorkMinutes)
 
                     // Stop focus mode and hide overlay
                     FocusModeService.stopFocusMode()
@@ -623,7 +668,84 @@ class TimerService : Service() {
         }
     }
 
+    // Note: sessionIdDeferred is reassigned on each call. The UI layer enforces that only
+    // one timer session is active at a time, so concurrent calls to createSession() cannot occur.
+    private fun createSession(taskId: Long, cycles: Int) {
+        sessionIdDeferred = CompletableDeferred()
+        serviceScope.launch {
+            val task = taskRepository.getTaskById(taskId).getOrNull()
+            if (task == null) {
+                Timber.w("Session creation skipped: task $taskId not found. Timer is running without a session record.")
+                sessionIdDeferred.complete(null)
+                return@launch
+            }
+            val settings = settingsRepository.getPomodoroSettings().getOrDefault(PomodoroSettings())
+            startTimerSessionUseCase(task, settings, cycles, LocalDateTime.now())
+                .onSuccess { sessionId ->
+                    updateTimerState(_timerState.value.copy(sessionId = sessionId))
+                    sessionIdDeferred.complete(sessionId)
+                }
+                .onFailure { error ->
+                    Timber.w("Session creation failed: $error. Timer is running without a session record.")
+                    sessionIdDeferred.complete(null)
+                }
+        }
+    }
+
+    private fun saveCompletedSession(totalWorkMinutes: Int) {
+        val state = _timerState.value
+        saveSession(
+            state = state,
+            totalWorkMinutes = totalWorkMinutes,
+            isInterrupted = false,
+            isSessionCompleted = true
+        )
+    }
+
+    private fun saveInterruptedSession() {
+        val state = _timerState.value
+        saveSession(
+            state = state,
+            totalWorkMinutes = state.totalWorkMinutes,
+            isInterrupted = true,
+            isSessionCompleted = false
+        )
+    }
+
+    private fun saveSession(
+        state: TimerState,
+        totalWorkMinutes: Int,
+        isInterrupted: Boolean,
+        isSessionCompleted: Boolean
+    ) {
+        serviceScope.launch {
+            withContext(NonCancellable) {
+                val sessionId = sessionIdDeferred.await() ?: return@withContext
+                val task = taskRepository.getTaskById(state.taskId).getOrNull() ?: return@withContext
+                val isPremium = premiumManager.isPremium()
+                val settings = settingsRepository.getPomodoroSettings().getOrDefault(PomodoroSettings())
+                val params = FinishTimerSessionUseCase.Params(
+                    sessionId = sessionId,
+                    task = task,
+                    settings = settings,
+                    totalWorkMinutes = totalWorkMinutes,
+                    currentCycle = state.currentCycle,
+                    totalCycles = state.totalCycles,
+                    isInterrupted = isInterrupted,
+                    isSessionCompleted = isSessionCompleted,
+                    isPremium = isPremium,
+                    reviewIntervals = premiumManager.getReviewIntervals(isPremium, task.reviewCount)
+                )
+                finishTimerSessionUseCase(params)
+                    .onSuccess { IterioWidgetReceiver.sendDataChangedBroadcast(this@TimerService) }
+                    .onFailure { Timber.e("Failed to save session: $it") }
+            }
+        }
+    }
+
     override fun onDestroy() {
+        serviceScope.cancel()
+
         try {
             countDownTimer?.cancel()
         } finally {

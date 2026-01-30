@@ -11,10 +11,9 @@ import com.iterio.app.domain.model.SubscriptionStatus
 import com.iterio.app.domain.model.SubscriptionType
 import com.iterio.app.domain.model.ScheduleType
 import com.iterio.app.domain.model.Task
+import com.iterio.app.domain.repository.SettingsRepository
 import com.iterio.app.domain.repository.TaskRepository
-import com.iterio.app.domain.usecase.FinishTimerSessionUseCase
 import com.iterio.app.domain.usecase.GetTimerInitialStateUseCase
-import com.iterio.app.domain.usecase.StartTimerSessionUseCase
 import com.iterio.app.domain.usecase.TimerInitialState
 import com.iterio.app.service.TimerPhase
 import com.iterio.app.service.TimerService
@@ -57,9 +56,8 @@ class TimerViewModelTest {
     private lateinit var context: Context
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var getTimerInitialStateUseCase: GetTimerInitialStateUseCase
-    private lateinit var startTimerSessionUseCase: StartTimerSessionUseCase
-    private lateinit var finishTimerSessionUseCase: FinishTimerSessionUseCase
     private lateinit var taskRepository: TaskRepository
+    private lateinit var settingsRepository: SettingsRepository
     private lateinit var premiumManager: PremiumManager
     private lateinit var bgmManager: BgmManager
     private lateinit var installedAppsHelper: InstalledAppsHelper
@@ -109,9 +107,8 @@ class TimerViewModelTest {
         context = mockk(relaxed = true)
         savedStateHandle = SavedStateHandle(mapOf("taskId" to 1L))
         getTimerInitialStateUseCase = mockk(relaxed = true)
-        startTimerSessionUseCase = mockk(relaxed = true)
-        finishTimerSessionUseCase = mockk(relaxed = true)
         taskRepository = mockk(relaxed = true)
+        settingsRepository = mockk(relaxed = true)
         premiumManager = mockk(relaxed = true)
         bgmManager = mockk(relaxed = true)
         installedAppsHelper = mockk(relaxed = true)
@@ -125,8 +122,6 @@ class TimerViewModelTest {
             defaultAllowedApps = setOf("com.example.allowed1")
         )
         coEvery { getTimerInitialStateUseCase(1L) } returns Result.Success(defaultInitialState)
-        coEvery { startTimerSessionUseCase(any(), any(), any(), any()) } returns Result.Success(1L)
-        coEvery { finishTimerSessionUseCase(any()) } returns Result.Success(Unit)
         coEvery { installedAppsHelper.getInstalledUserApps() } returns mockApps
         every { premiumManager.subscriptionStatus } returns subscriptionStatusFlow
         every { bgmManager.bgmState } returns MutableStateFlow(mockk(relaxed = true))
@@ -151,9 +146,8 @@ class TimerViewModelTest {
             savedStateHandle = savedStateHandle,
             context = context,
             getTimerInitialStateUseCase = getTimerInitialStateUseCase,
-            startTimerSessionUseCase = startTimerSessionUseCase,
-            finishTimerSessionUseCase = finishTimerSessionUseCase,
             taskRepository = taskRepository,
+            settingsRepository = settingsRepository,
             premiumManager = premiumManager,
             bgmManager = bgmManager,
             installedAppsHelper = installedAppsHelper
@@ -515,6 +509,48 @@ class TimerViewModelTest {
         )
     }
 
+    // ========== updateAllowedApps テスト ==========
+
+    @Test
+    fun `updateAllowedApps updates UiState and saves to repository`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val newApps = setOf("com.example.app1", "com.example.app2")
+        viewModel.updateAllowedApps(newApps)
+        advanceUntilIdle()
+
+        // UiState が即座に更新されること
+        assertEquals(
+            "defaultAllowedApps が更新されるべき",
+            newApps,
+            viewModel.uiState.value.defaultAllowedApps
+        )
+
+        // SettingsRepository に保存されること
+        io.mockk.coVerify {
+            settingsRepository.setAllowedApps(match { it.toSet() == newApps })
+        }
+    }
+
+    @Test
+    fun `updateAllowedApps with empty set clears allowed apps`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.updateAllowedApps(emptySet())
+        advanceUntilIdle()
+
+        assertTrue(
+            "defaultAllowedApps が空になるべき",
+            viewModel.uiState.value.defaultAllowedApps.isEmpty()
+        )
+
+        io.mockk.coVerify {
+            settingsRepository.setAllowedApps(emptyList())
+        }
+    }
+
     // ========== BGM追加テスト ==========
 
     @Test
@@ -654,7 +690,6 @@ class TimerViewModelTest {
             allowedApps = eq(emptySet())
         ) }
         io.mockk.verify { bgmManager.onTimerStart() }
-        io.mockk.coVerify { startTimerSessionUseCase(any(), any(), any(), any()) }
     }
 
     @Test
@@ -813,17 +848,18 @@ class TimerViewModelTest {
     }
 
     @Test
-    fun `cancelTimer with interrupted false`() = runTest {
+    fun `cancelTimer always delegates to TimerService`() = runTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
         viewModel.startTimer()
         advanceUntilIdle()
 
-        viewModel.cancelTimer(interrupted = false)
+        viewModel.cancelTimer()
         advanceUntilIdle()
 
-        io.mockk.coVerify { finishTimerSessionUseCase(any()) }
+        io.mockk.verify { TimerService.stopTimer(context) }
+        io.mockk.verify { bgmManager.onTimerStop() }
     }
 
     @Test
@@ -879,34 +915,6 @@ class TimerViewModelTest {
         advanceUntilIdle()
 
         assertNotNull(viewModel.bgmVolume)
-    }
-
-    @Test
-    fun `createSession sets sessionId on success`() = runTest {
-        coEvery { startTimerSessionUseCase(any(), any(), any(), any()) } returns Result.Success(42L)
-
-        val viewModel = createViewModel()
-        advanceUntilIdle()
-
-        viewModel.startTimer()
-        advanceUntilIdle()
-
-        assertEquals(42L, viewModel.uiState.value.sessionId)
-    }
-
-    @Test
-    fun `createSession handles failure gracefully`() = runTest {
-        coEvery { startTimerSessionUseCase(any(), any(), any(), any()) } returns Result.Failure(
-            DomainError.DatabaseError("DB error")
-        )
-
-        val viewModel = createViewModel()
-        advanceUntilIdle()
-
-        viewModel.startTimer()
-        advanceUntilIdle()
-
-        assertNull(viewModel.uiState.value.sessionId)
     }
 
     // ========== loadNextTask テスト ==========
